@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-angelone-bot",
+  "version": "1.0.0",
+  "description": "Automated WhatsApp Bot for Angel One Client Management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "body-parser": "^1.20.2",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
