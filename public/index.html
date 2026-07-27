@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Angel One TPF — WhatsApp CRM Dashboard</title>
+    <meta name="description" content="Angel One TPF WhatsApp CRM — track leads, send bulk messages, and monitor client funnel stages." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon">A1</div>
+        <div>
+            <div class="brand-name">Angel One TPF</div>
+            <div class="brand-sub">WhatsApp CRM</div>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+            <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a href="#" class="nav-item" data-tab="clients" onclick="switchTab('clients', this)">
+            <span class="nav-icon">👥</span> Clients
+        </a>
+        <a href="#" class="nav-item" data-tab="messaging" onclick="switchTab('messaging', this)">
+            <span class="nav-icon">💬</span> Send Messages
+        </a>
+        <a href="#" class="nav-item" data-tab="upload" onclick="switchTab('upload', this)">
+            <span class="nav-icon">📁</span> Upload CSV
+        </a>
+        <a href="#" class="nav-item" data-tab="addclient" onclick="switchTab('addclient', this)">
+            <span class="nav-icon">➕</span> Add Client
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="status-dot"></div>
+        <span>System Online</span>
+    </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+    <!-- HEADER -->
+    <header class="header">
+        <div>
+            <h1 class="header-title" id="page-title">Dashboard</h1>
+            <p class="header-sub">Real-time WhatsApp lead tracking</p>
+        </div>
+        <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+    </header>
+
+    <!-- TAB: DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content active">
+        <!-- Stats Grid -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card" style="--accent: #6c63ff;">
+                <div class="stat-label">Total Leads</div>
+                <div class="stat-value" id="stat-total">—</div>
+                <div class="stat-icon">👥</div>
+            </div>
+            <div class="stat-card" style="--accent: #00d2d3;">
+                <div class="stat-label">Messages Sent</div>
+                <div class="stat-value" id="stat-sent">—</div>
+                <div class="stat-icon">📤</div>
+            </div>
+            <div class="stat-card" style="--accent: #54a0ff;">
+                <div class="stat-label">Delivered</div>
+                <div class="stat-value" id="stat-delivered">—</div>
+                <div class="stat-icon">✅</div>
+            </div>
+            <div class="stat-card" style="--accent: #5f27cd;">
+                <div class="stat-label">Read (Blue Ticks)</div>
+                <div class="stat-value" id="stat-read">—</div>
+                <div class="stat-icon">👀</div>
+            </div>
+            <div class="stat-card" style="--accent: #ff9f43;">
+                <div class="stat-label">Link Clicked</div>
+                <div class="stat-value" id="stat-clicked">—</div>
+                <div class="stat-icon">🔗</div>
+            </div>
+            <div class="stat-card" style="--accent: #1dd1a1;">
+                <div class="stat-label">Account Opened</div>
+                <div class="stat-value" id="stat-opened">—</div>
+                <div class="stat-icon">🎉</div>
+            </div>
+            <div class="stat-card" style="--accent: #ff6b6b;">
+                <div class="stat-label">Funded</div>
+                <div class="stat-value" id="stat-funded">—</div>
+                <div class="stat-icon">💰</div>
+            </div>
+            <div class="stat-card" style="--accent: #ffd32a;">
+                <div class="stat-label">Incomplete</div>
+                <div class="stat-value" id="stat-incomplete">—</div>
+                <div class="stat-icon">⏳</div>
+            </div>
+        </div>
+
+        <!-- Funnel -->
+        <div class="section-card">
+            <h2 class="section-title">📈 Lead Funnel</h2>
+            <div class="funnel" id="funnel-view">
+                <div class="funnel-step" style="--w: 100%; --color: #6c63ff;">
+                    <div class="funnel-bar"><span id="f-total">0</span> Total Leads</div>
+                </div>
+                <div class="funnel-step" style="--w: 90%; --color: #54a0ff;">
+                    <div class="funnel-bar"><span id="f-sent">0</span> Message Sent</div>
+                </div>
+                <div class="funnel-step" style="--w: 75%; --color: #00d2d3;">
+                    <div class="funnel-bar"><span id="f-delivered">0</span> Delivered</div>
+                </div>
+                <div class="funnel-step" style="--w: 60%; --color: #5f27cd;">
+                    <div class="funnel-bar"><span id="f-read">0</span> Read</div>
+                </div>
+                <div class="funnel-step" style="--w: 45%; --color: #ff9f43;">
+                    <div class="funnel-bar"><span id="f-clicked">0</span> Link Clicked</div>
+                </div>
+                <div class="funnel-step" style="--w: 30%; --color: #1dd1a1;">
+                    <div class="funnel-bar"><span id="f-opened">0</span> Account Opened</div>
+                </div>
+                <div class="funnel-step" style="--w: 15%; --color: #ff6b6b;">
+                    <div class="funnel-bar"><span id="f-funded">0</span> Funded</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: CLIENTS -->
+    <section id="tab-clients" class="tab-content">
+        <div class="section-card">
+            <div class="table-header">
+                <h2 class="section-title">👥 All Clients</h2>
+                <div class="table-filters">
+                    <select id="filter-stage" onchange="filterClients()">
+                        <option value="all">All Stages</option>
+                        <option value="lead">Lead</option>
+                        <option value="link_clicked">Link Clicked</option>
+                        <option value="incomplete">Incomplete</option>
+                        <option value="account_opened">Account Opened</option>
+                        <option value="funded">Funded</option>
+                    </select>
+                    <select id="filter-status" onchange="filterClients()">
+                        <option value="all">All Statuses</option>
+                        <option value="not_sent">Not Sent</option>
+                        <option value="sent">Sent</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="read">Read</option>
+                    </select>
+                    <input type="text" id="filter-search" placeholder="Search name or phone..." oninput="filterClients()" />
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="clients-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Stage</th>
+                            <th>Msg Status</th>
+                            <th>Link Clicked</th>
+                            <th>Msgs Sent</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-tbody">
+                        <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: MESSAGING -->
+    <section id="tab-messaging" class="tab-content">
+        <div class="section-card">
+            <h2 class="section-title">💬 Send Bulk WhatsApp Messages</h2>
+            <p class="section-desc">Select a group of clients by their current stage, then send them a targeted message. Our system will personalize each message automatically.</p>
+
+            <div class="msg-grid">
+                <div class="msg-card" onclick="openSendModal('lead', 'lead')">
+                    <div class="msg-card-icon">🎯</div>
+                    <div class="msg-card-title">New Leads</div>
+                    <div class="msg-card-desc">Send initial message to people who haven't been contacted yet.</div>
+                    <div class="msg-card-count" id="mc-lead">— clients</div>
+                </div>
+                <div class="msg-card" onclick="openSendModal('read', 'follow_up')">
+                    <div class="msg-card-icon">👀</div>
+                    <div class="msg-card-title">Read but No Action</div>
+                    <div class="msg-card-desc">Follow up with those who read your message but didn't click the link.</div>
+                    <div class="msg-card-count" id="mc-read">— clients</div>
+                </div>
+                <div class="msg-card" onclick="openSendModal('link_clicked', 'link_clicked')">
+                    <div class="msg-card-icon">🔗</div>
+                    <div class="msg-card-title">Clicked Link</div>
+                    <div class="msg-card-desc">Send a gentle nudge to those who visited the page but didn't complete the form.</div>
+                    <div class="msg-card-count" id="mc-clicked">— clients</div>
+                </div>
+                <div class="msg-card" onclick="openSendModal('incomplete', 'incomplete')">
+                    <div class="msg-card-icon">⏳</div>
+                    <div class="msg-card-title">Incomplete Application</div>
+                    <div class="msg-card-desc">Remind those who started but didn't finish the account opening process.</div>
+                    <div class="msg-card-count" id="mc-incomplete">— clients</div>
+                </div>
+                <div class="msg-card" onclick="openSendModal('account_opened', 'account_opened')">
+                    <div class="msg-card-icon">🎉</div>
+                    <div class="msg-card-title">Account Opened</div>
+                    <div class="msg-card-desc">Congratulate and encourage them to add funds and start trading.</div>
+                    <div class="msg-card-count" id="mc-opened">— clients</div>
+                </div>
+                <div class="msg-card" onclick="openSendModal('funded', 'not_funded')">
+                    <div class="msg-card-icon">💰</div>
+                    <div class="msg-card-title">Not Yet Funded</div>
+                    <div class="msg-card-desc">Motivate account holders who haven't added funds or placed a trade yet.</div>
+                    <div class="msg-card-count" id="mc-funded">— clients</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: UPLOAD CSV -->
+    <section id="tab-upload" class="tab-content">
+        <div class="section-card">
+            <h2 class="section-title">📁 Upload Angel One CSV</h2>
+            <p class="section-desc">Upload your daily CSV export from Angel One. The system will automatically detect new clients and update existing client stages.</p>
+
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-input').click()">
+                <div class="upload-icon">📂</div>
+                <div class="upload-text">Drag & drop your CSV file here</div>
+                <div class="upload-sub">or click to browse files</div>
+                <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="uploadCSV(this)" />
+            </div>
+
+            <div id="upload-result" class="upload-result hidden"></div>
+
+            <div class="csv-info">
+                <h3>📋 Expected CSV Columns</h3>
+                <p>Your Angel One CSV should have these columns (names may vary slightly):</p>
+                <table class="info-table">
+                    <tr><th>Column</th><th>Example Values</th></tr>
+                    <tr><td>Name / Client Name</td><td>Rajesh Kumar</td></tr>
+                    <tr><td>Mobile / Phone</td><td>9876543210</td></tr>
+                    <tr><td>Status / Account Status</td><td>Active, Incomplete, Pending</td></tr>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: ADD CLIENT -->
+    <section id="tab-addclient" class="tab-content">
+        <div class="section-card" style="max-width: 500px;">
+            <h2 class="section-title">➕ Add Single Client</h2>
+            <p class="section-desc">Manually add a single lead to the system.</p>
+            <form onsubmit="addClient(event)">
+                <div class="form-group">
+                    <label>Client Name</label>
+                    <input type="text" id="add-name" placeholder="e.g. Rajesh Kumar" required />
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (with country code)</label>
+                    <input type="text" id="add-phone" placeholder="e.g. 9876543210 or 919876543210" required />
+                </div>
+                <button type="submit" class="btn-primary">Add Client</button>
+            </form>
+            <div id="add-result" class="upload-result hidden" style="margin-top:16px;"></div>
+        </div>
+    </section>
+
+</main>
+
+<!-- SEND MODAL -->
+<div class="modal-overlay hidden" id="send-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modal-title">Send Message</h3>
+            <button onclick="closeSendModal()" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <p id="modal-desc">Are you sure you want to send a WhatsApp message to all clients in this group?</p>
+            <div class="modal-warning">⚠️ This will send real WhatsApp messages. Make sure your Meta token is active before proceeding.</div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeSendModal()" class="btn-secondary">Cancel</button>
+            <button onclick="confirmSend()" class="btn-primary" id="confirm-send-btn">Send Messages</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
