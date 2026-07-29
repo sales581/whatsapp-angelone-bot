@@ -185,7 +185,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
 
     // Map each stage/message_type to an approved Meta template
     const templateMap = {
-        lead: 'tpf_initial_lead',
+        lead: 'followup1', // Temporarily using followup1 because tpf_initial_lead video is failing
         follow_up: 'followup1',
         link_clicked: 'followup1',
         incomplete: 'kyc_folloup',
