@@ -67,12 +67,22 @@ function processCSV(rows, callback) {
     let added = 0, updated = 0, skipped = 0;
 
     for (const row of rows) {
-        const name = row['Name'] || row['CLIENT NAME'] || row['Client Name'] || row['name'] || 'Unknown';
-        let phone = row['Mobile'] || row['Phone'] || row['MOBILE'] || row['phone'] || row['Mobile No'] || '';
-        const status = row['Status'] || row['STATUS'] || row['Account Status'] || '';
+        const name = row['Name'] || row['CLIENT NAME'] || row['Client Name'] || row['name'] || row['client name'] || 'Unknown';
+        let phone = row['Mobile Number'] || row['Mobile No'] || row['Mobile'] || row['Phone'] || row['MOBILE'] || row['MOBILE NUMBER'] || row['phone'] || row['mobile number'] || row['mobile no'] || row['Contact'] || row['Contact No'] || row['Contact Number'] || '';
+        const status = row['Status'] || row['STATUS'] || row['Account Status'] || row['status'] || row['account status'] || '';
         const stage = mapAngelOneStatus(status);
 
         if (!phone) { skipped++; continue; }
+
+        // Fix Excel scientific notation (9.02E+09 → 9020000000)
+        phone = phone.toString();
+        if (phone.includes('E+') || phone.includes('e+')) {
+            phone = Math.round(Number(phone)).toString();
+        }
+        // Remove any decimals that Excel may have added
+        if (phone.includes('.')) {
+            phone = phone.split('.')[0];
+        }
         phone = normalizePhone(phone);
 
         const idx = db.clients.findIndex(c => c.phone === phone);
