@@ -222,7 +222,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
                 {
                     type: 'video',
                     video: {
-                        link: `${serverUrl}/tpf_video_v2.mp4`
+                        id: '1621679125968627'
                     }
                 }
             ]
