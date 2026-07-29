@@ -129,11 +129,13 @@ function processCSV(rows, callback) {
 
 function mapAngelOneStatus(status) {
     const s = (status || '').toLowerCase().trim();
+    if (!s) return 'lead'; // Blank status = New Lead
     if (s.includes('account open') || s.includes('opened') || s.includes('active')) return 'account_opened';
     if (s.includes('fund') || s.includes('deposit') || s.includes('trade')) return 'funded';
     if (s.includes('incomplete') || s.includes('pending') || s.includes('in progress')) return 'incomplete';
     if (s.includes('rejected') || s.includes('failed')) return 'rejected';
-    return 'link_clicked';
+    if (s.includes('link') || s.includes('clicked')) return 'link_clicked';
+    return 'lead'; // Default fallback
 }
 
 // ============================================================
