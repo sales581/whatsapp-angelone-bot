@@ -5,15 +5,28 @@
       "name": "Trilok Singh",
       "phone": "919024668671",
       "angel_stage": "incomplete",
-      "message_status": "not_sent",
+      "message_status": "sent",
       "clicked_link": false,
-      "messages_sent": 0,
-      "last_message_type": null,
-      "last_message_time": null,
-      "last_updated": "29/7/2026, 3:54:46 pm",
+      "messages_sent": 2,
+      "last_message_type": "incomplete",
+      "last_message_time": "29/7/2026, 4:49:55 pm",
+      "last_updated": "29/7/2026, 4:49:55 pm",
       "created_at": "29/7/2026, 3:54:46 pm"
     }
   ],
-  "message_log": [],
+  "message_log": [
+    {
+      "phone": "919024668671",
+      "direction": "outgoing",
+      "message_type": "incomplete",
+      "timestamp": "29/7/2026, 4:37:38 pm"
+    },
+    {
+      "phone": "919024668671",
+      "direction": "outgoing",
+      "message_type": "incomplete",
+      "timestamp": "29/7/2026, 4:49:55 pm"
+    }
+  ],
   "next_id": 2
 }

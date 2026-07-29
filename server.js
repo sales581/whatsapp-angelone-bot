@@ -62,6 +62,9 @@ app.post('/webhook', (req, res) => {
                 const phone = status.recipient_id;
                 const msgStatus = status.status; // sent, delivered, read
                 console.log(`Status update for ${phone}: ${msgStatus}`);
+                if (msgStatus === 'failed' && status.errors) {
+                    console.log(`Failure Reason for ${phone}:`, JSON.stringify(status.errors, null, 2));
+                }
                 db.updateMessageStatus(phone, msgStatus);
             }
         }
