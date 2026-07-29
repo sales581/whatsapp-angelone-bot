@@ -320,3 +320,24 @@ function formatStage(stage) {
 function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ============================================================
+// CLEAR DATA
+// ============================================================
+async function clearData() {
+    if (!confirm("⚠️ Are you sure you want to permanently delete ALL client records? This cannot be undone!")) {
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/clear', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            showToast('🗑️ All data has been cleared!');
+            loadDashboard();
+            loadMessagingCounts();
+        }
+    } catch (err) {
+        showToast('❌ Failed to clear data.');
+    }
+}
