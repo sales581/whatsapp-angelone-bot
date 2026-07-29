@@ -231,6 +231,15 @@ function getStats(callback) {
     });
 }
 
+// ============================================================
+// CLEAR ALL DATA
+// ============================================================
+function clearAllClients(callback) {
+    const empty = { clients: [], message_log: [], next_id: 1 };
+    saveDB(empty);
+    callback({ success: true });
+}
+
 module.exports = {
     addClient,
     processCSV,
@@ -241,4 +250,5 @@ module.exports = {
     getAllClients,
     getClientsByStage,
     getStats,
+    clearAllClients,
 };

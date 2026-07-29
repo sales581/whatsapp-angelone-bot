@@ -125,6 +125,15 @@ app.post('/api/upload-csv', upload.single('csv'), (req, res) => {
 });
 
 // ============================================================
+// API - CLEAR DATABASE
+// ============================================================
+app.delete('/api/clear', (req, res) => {
+    db.clearAllClients(() => {
+        res.json({ success: true, message: 'All records deleted.' });
+    });
+});
+
+// ============================================================
 // 8. API - SEND BULK WHATSAPP MESSAGE BY STAGE
 // ============================================================
 app.post('/api/send-bulk', async (req, res) => {
@@ -196,7 +205,14 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
         template: {
             name: templateName,
             language: { code: 'en' },
-            components: []
+            components: [
+                {
+                    type: 'body',
+                    parameters: [
+                        { type: 'text', text: name || 'Client' }
+                    ]
+                }
+            ]
         }
     };
 
