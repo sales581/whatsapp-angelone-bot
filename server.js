@@ -162,38 +162,48 @@ app.post('/api/add-client', (req, res) => {
 });
 
 // ============================================================
-// WHATSAPP MESSAGING FUNCTION
+// WHATSAPP MESSAGING FUNCTION (Using Approved Templates)
 // ============================================================
 async function sendWhatsAppMessage(phone, name, message_type, stage) {
     const token = process.env.META_ACCESS_TOKEN;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
 
-    // Build tracking link for this specific client
-    const serverUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : `http://localhost:${PORT}`;
-    const trackingLink = `${serverUrl}/link/${phone}`;
-
-    // Message templates based on stage
-    const messages = {
-        lead: `Hi ${name}! 👋\n\nI'm reaching out from *Angel One - TPF*. We help you open a free Demat account and start investing in stocks.\n\n📈 *Benefits:*\n• Zero brokerage on delivery trades\n• Easy mobile app\n• Expert support\n\n👉 Open your account now: ${trackingLink}\n\nReply *YES* if you're interested!`,
-        link_clicked: `Hi ${name}! 😊\n\nWe noticed you visited our account opening page but haven't completed it yet.\n\nNeed any help? Just reply to this message and our team will guide you step by step! 🙌`,
-        incomplete: `Hi ${name}! 👋\n\nYour Angel One account application is *almost done*! Just a few more steps to complete.\n\n👉 Complete here: ${trackingLink}\n\nOur team is ready to help if you face any issues. Just reply to this message!`,
-        account_opened: `🎉 Congratulations ${name}!\n\nYour *Angel One Demat Account* is now active!\n\nTo start trading:\n1️⃣ Download Angel One App\n2️⃣ Add funds to your account\n3️⃣ Place your first trade!\n\nNeed help? Just reply and we'll guide you! 📈`,
-        not_funded: `Hi ${name}! 💰\n\nYour Angel One account is ready but you haven't added funds yet.\n\n*Why add funds now?*\n• Markets are full of opportunities\n• Even ₹500 is enough to start\n• Zero brokerage on delivery!\n\nAdd funds today and place your first trade! Reply *HELP* if you need guidance.`,
-        follow_up: `Hi ${name}! 👋\n\nJust checking in from *Angel One - TPF*. Have you had a chance to look at the account opening details I shared?\n\nFeel free to reply with any questions. We are here to help! 😊`,
+    // Map each stage/message_type to an approved Meta template
+    const templateMap = {
+        lead: 'tpf_initial_lead',
+        follow_up: 'followup1',
+        link_clicked: 'followup1',
+        incomplete: 'kyc_folloup',
+        account_opened: 'followup1',
+        not_funded: 'followup1',
     };
 
-    const messageText = messages[message_type] || messages[stage] || messages['follow_up'];
+    const templateName = templateMap[message_type] || templateMap[stage] || 'followup1';
+
+    // Build the template message payload
+    const payload = {
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+            name: templateName,
+            language: { code: 'en' },
+            components: [
+                {
+                    type: 'body',
+                    parameters: [
+                        { type: 'text', text: name }
+                    ]
+                }
+            ]
+        }
+    };
+
+    console.log(`Sending template "${templateName}" to ${phone} (${name})`);
 
     const response = await axios.post(
-        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-        {
-            messaging_product: 'whatsapp',
-            to: phone,
-            type: 'text',
-            text: { body: messageText },
-        },
+        `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+        payload,
         {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -201,8 +211,25 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
             },
         }
     );
+    console.log(`Message sent successfully to ${phone}:`, response.data);
     return response.data;
 }
+
+// ============================================================
+// 10. API - TEST SEND SINGLE MESSAGE
+// ============================================================
+app.post('/api/test-send', async (req, res) => {
+    const { phone, name, template } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone is required' });
+
+    try {
+        const result = await sendWhatsAppMessage(phone, name || 'Test User', template || 'lead', 'lead');
+        res.json({ success: true, result });
+    } catch (err) {
+        console.error('Test send failed:', err.response?.data || err.message);
+        res.status(500).json({ success: false, error: err.response?.data || err.message });
+    }
+});
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
