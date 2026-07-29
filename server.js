@@ -181,9 +181,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
 
     // Build tracking link and public server URL
-    const serverUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : `http://localhost:${process.env.PORT || 3000}`;
+    const serverUrl = 'https://whatsapp-angelone-bot-production.up.railway.app';
 
     // Map each stage/message_type to an approved Meta template
     const templateMap = {
