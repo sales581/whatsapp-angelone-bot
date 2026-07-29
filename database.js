@@ -67,10 +67,26 @@ function processCSV(rows, callback) {
     let added = 0, updated = 0, skipped = 0;
 
     for (const row of rows) {
-        const name = row['Name'] || row['CLIENT NAME'] || row['Client Name'] || row['name'] || row['client name'] || 'Unknown';
-        let phone = row['Mobile Number'] || row['Mobile No'] || row['Mobile'] || row['Phone'] || row['MOBILE'] || row['MOBILE NUMBER'] || row['phone'] || row['mobile number'] || row['mobile no'] || row['Contact'] || row['Contact No'] || row['Contact Number'] || '';
-        const status = row['Status'] || row['STATUS'] || row['Account Status'] || row['status'] || row['account status'] || '';
+        // Smart column detection — find columns by keyword matching
+        const keys = Object.keys(row);
+        const findCol = (...keywords) => {
+            for (const key of keys) {
+                const k = key.toLowerCase().trim();
+                if (keywords.some(kw => k.includes(kw))) return row[key];
+            }
+            return '';
+        };
+
+        const name = findCol('name', 'client', 'customer') || 'Unknown';
+        let phone = findCol('mobile', 'phone', 'contact', 'number', 'whatsapp') || '';
+        const status = findCol('status', 'stage', 'state') || '';
         const stage = mapAngelOneStatus(status);
+
+        // Debug: log column names on first row
+        if (added === 0 && updated === 0 && skipped === 0) {
+            console.log('CSV Columns detected:', keys);
+            console.log('Mapped → Name:', name, '| Phone:', phone, '| Status:', status);
+        }
 
         if (!phone) { skipped++; continue; }
 
