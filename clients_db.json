@@ -1,5 +1,19 @@
 {
-  "clients": [],
+  "clients": [
+    {
+      "id": 1,
+      "name": "Trilok Singh",
+      "phone": "919024668671",
+      "angel_stage": "incomplete",
+      "message_status": "not_sent",
+      "clicked_link": false,
+      "messages_sent": 0,
+      "last_message_type": null,
+      "last_message_time": null,
+      "last_updated": "29/7/2026, 3:54:46 pm",
+      "created_at": "29/7/2026, 3:54:46 pm"
+    }
+  ],
   "message_log": [],
-  "next_id": 1
+  "next_id": 2
 }
