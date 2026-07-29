@@ -171,6 +171,11 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
     const token = process.env.META_ACCESS_TOKEN;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;
 
+    // Build tracking link and public server URL
+    const serverUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : `http://localhost:${process.env.PORT || 3000}`;
+
     // Map each stage/message_type to an approved Meta template
     const templateMap = {
         lead: 'tpf_initial_lead',
@@ -183,7 +188,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
 
     const templateName = templateMap[message_type] || templateMap[stage] || 'followup1';
 
-    // Build the template message payload
+    // Build the base template message payload
     const payload = {
         messaging_product: 'whatsapp',
         to: phone,
@@ -191,16 +196,24 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
         template: {
             name: templateName,
             language: { code: 'en' },
-            components: [
-                {
-                    type: 'body',
-                    parameters: [
-                        { type: 'text', text: name }
-                    ]
-                }
-            ]
+            components: []
         }
     };
+
+    // Add Video header ONLY for tpf_initial_lead
+    if (templateName === 'tpf_initial_lead') {
+        payload.template.components.push({
+            type: 'header',
+            parameters: [
+                {
+                    type: 'video',
+                    video: {
+                        link: `${serverUrl}/lead_video.mp4`
+                    }
+                }
+            ]
+        });
+    }
 
     console.log(`Sending template "${templateName}" to ${phone} (${name})`);
 

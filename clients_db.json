@@ -7,10 +7,10 @@
       "angel_stage": "incomplete",
       "message_status": "sent",
       "clicked_link": false,
-      "messages_sent": 3,
+      "messages_sent": 4,
       "last_message_type": "incomplete",
-      "last_message_time": "29/7/2026, 4:54:42 pm",
-      "last_updated": "29/7/2026, 4:54:42 pm",
+      "last_message_time": "29/7/2026, 4:57:12 pm",
+      "last_updated": "29/7/2026, 4:57:12 pm",
       "created_at": "29/7/2026, 3:54:46 pm"
     }
   ],
@@ -32,6 +32,12 @@
       "direction": "outgoing",
       "message_type": "incomplete",
       "timestamp": "29/7/2026, 4:54:42 pm"
+    },
+    {
+      "phone": "919024668671",
+      "direction": "outgoing",
+      "message_type": "incomplete",
+      "timestamp": "29/7/2026, 4:57:12 pm"
     }
   ],
   "next_id": 2
