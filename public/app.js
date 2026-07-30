@@ -337,10 +337,85 @@ async function clearData() {
         const data = await res.json();
         if (data.success) {
             showToast('🗑️ All data has been cleared!');
-            loadDashboard();
-            loadMessagingCounts();
+// ============================================================
+// CHAT MODAL LOGIC
+// ============================================================
+let currentChatPhone = null;
+
+async function openChatModal(phone, name) {
+    currentChatPhone = phone;
+    document.getElementById('chat-modal-title').textContent = `Chat with ${name}`;
+    document.getElementById('chat-modal').classList.remove('hidden');
+    document.getElementById('chat-history').innerHTML = '<div style="text-align:center; padding: 20px;">Loading history...</div>';
+    document.getElementById('chat-reply-input').value = '';
+
+    await fetchChatHistory(phone);
+}
+
+function closeChatModal() {
+    document.getElementById('chat-modal').classList.add('hidden');
+    currentChatPhone = null;
+}
+
+async function fetchChatHistory(phone) {
+    try {
+        const res = await fetch(`/api/chat/${phone}`);
+        const data = await res.json();
+        const container = document.getElementById('chat-history');
+        
+        if (!data.history || data.history.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding: 20px; color: #666;">No conversation history yet.</div>';
+            return;
         }
+
+        container.innerHTML = data.history.map(msg => {
+            const isIncoming = msg.direction === 'incoming';
+            return `
+                <div class="chat-bubble ${isIncoming ? 'incoming' : 'outgoing'}">
+                    ${escapeHtml(msg.content || (msg.message_type ? `[Template Sent: ${msg.message_type}]` : ''))}
+                    <span class="chat-time">${msg.timestamp ? msg.timestamp.substring(11, 16) : ''}</span>
+                </div>
+            `;
+        }).join('');
+        
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
     } catch (err) {
-        showToast('❌ Failed to clear data.');
+        document.getElementById('chat-history').innerHTML = '<div style="text-align:center; color: red;">Failed to load history.</div>';
     }
 }
+
+async function sendManualReply() {
+    if (!currentChatPhone) return;
+    const input = document.getElementById('chat-reply-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById('send-reply-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+        const res = await fetch('/api/chat/reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: currentChatPhone, text })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            input.value = '';
+            showToast('Reply sent successfully!');
+            await fetchChatHistory(currentChatPhone); // Refresh chat
+        } else {
+            showToast(data.error || 'Failed to send reply', 'error');
+        }
+    } catch (err) {
+        showToast('Network error while sending reply', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send';
+    }
+}
+
+loadDashboard();
