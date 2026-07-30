@@ -242,6 +242,15 @@ function clearAllClients(callback) {
     callback({ success: true });
 }
 
+// ============================================================
+// GET CHAT HISTORY
+// ============================================================
+function getChatHistory(phone, callback) {
+    const db = loadDB();
+    const history = db.message_log.filter(m => m.phone === phone);
+    callback(history);
+}
+
 module.exports = {
     addClient,
     processCSV,
@@ -253,4 +262,5 @@ module.exports = {
     getClientsByStage,
     getStats,
     clearAllClients,
+    getChatHistory,
 };

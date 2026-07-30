@@ -169,10 +169,11 @@
                             <th>Link Clicked</th>
                             <th>Msgs Sent</th>
                             <th>Last Updated</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="clients-tbody">
-                        <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+                        <tr><td colspan="9" class="empty-row">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -294,6 +295,22 @@
     </div>
 </div>
 
+<!-- CHAT MODAL -->
+<div class="modal-overlay hidden" id="chat-modal">
+    <div class="modal chat-modal-content">
+        <div class="modal-header">
+            <h3 id="chat-modal-title">Chat History</h3>
+            <button onclick="closeChatModal()" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body chat-history-container" id="chat-history">
+            <!-- Chat messages injected here -->
+        </div>
+        <div class="modal-footer chat-footer">
+            <input type="text" id="chat-reply-input" placeholder="Type a message to reply... (Only works if client replied in last 24h)" />
+            <button onclick="sendManualReply()" class="btn-primary" id="send-reply-btn">Send</button>
+        </div>
+    </div>
+</div>
 <!-- TOAST NOTIFICATION -->
 <div class="toast hidden" id="toast"></div>
 

@@ -134,6 +134,48 @@ app.delete('/api/clear', (req, res) => {
 });
 
 // ============================================================
+// API - GET CHAT HISTORY
+// ============================================================
+app.get('/api/chat/:phone', (req, res) => {
+    db.getChatHistory(req.params.phone, (history) => {
+        res.json({ success: true, history });
+    });
+});
+
+// ============================================================
+// API - SEND MANUAL REPLY
+// ============================================================
+app.post('/api/chat/reply', async (req, res) => {
+    const { phone, text } = req.body;
+    if (!phone || !text) return res.status(400).json({ error: 'Phone and text are required' });
+
+    const token = process.env.META_ACCESS_TOKEN;
+    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+
+    const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { preview_url: false, body: text }
+    };
+
+    try {
+        await axios.post(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, payload, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        
+        // Log it locally
+        db.logMessageSent(phone, 'manual_reply');
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`Failed to send manual reply to ${phone}:`, err.response?.data || err.message);
+        res.status(500).json({ error: 'Failed to send message via Meta API' });
+    }
+});
+
+// ============================================================
 // 8. API - SEND BULK WHATSAPP MESSAGE BY STAGE
 // ============================================================
 app.post('/api/send-bulk', async (req, res) => {

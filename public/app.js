@@ -89,7 +89,7 @@ async function loadClients() {
 function renderClients(clients) {
     const tbody = document.getElementById('clients-tbody');
     if (!clients.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No clients found. Add a client or upload a CSV to get started!</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-row">No clients found. Add a client or upload a CSV to get started!</td></tr>';
         return;
     }
     tbody.innerHTML = clients.map((c, i) => `
@@ -102,6 +102,9 @@ function renderClients(clients) {
             <td>${c.clicked_link ? '✅ Yes' : '❌ No'}</td>
             <td>${c.messages_sent || 0}</td>
             <td>${c.last_updated ? c.last_updated.substring(0, 16) : '—'}</td>
+            <td>
+                <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="openChatModal('${c.phone}', '${escapeHtml(c.name)}')">💬 Chat</button>
+            </td>
         </tr>
     `).join('');
 }
