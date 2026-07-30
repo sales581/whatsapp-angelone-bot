@@ -337,6 +337,14 @@ async function clearData() {
         const data = await res.json();
         if (data.success) {
             showToast('🗑️ All data has been cleared!');
+            loadDashboard();
+            loadMessagingCounts();
+        }
+    } catch (err) {
+        showToast('❌ Failed to clear data.');
+    }
+}
+
 // ============================================================
 // CHAT MODAL LOGIC
 // ============================================================
