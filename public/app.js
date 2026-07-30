@@ -349,6 +349,7 @@ async function clearData() {
 // CHAT MODAL LOGIC
 // ============================================================
 let currentChatPhone = null;
+let chatPollInterval = null;
 
 async function openChatModal(phone, name) {
     currentChatPhone = phone;
@@ -358,25 +359,35 @@ async function openChatModal(phone, name) {
     document.getElementById('chat-reply-input').value = '';
 
     await fetchChatHistory(phone);
+    
+    // Auto-refresh chat every 5 seconds while modal is open
+    if (chatPollInterval) clearInterval(chatPollInterval);
+    chatPollInterval = setInterval(() => {
+        if (currentChatPhone === phone) fetchChatHistory(phone, true);
+    }, 5000);
 }
 
 function closeChatModal() {
     document.getElementById('chat-modal').classList.add('hidden');
     currentChatPhone = null;
+    if (chatPollInterval) {
+        clearInterval(chatPollInterval);
+        chatPollInterval = null;
+    }
 }
 
-async function fetchChatHistory(phone) {
+async function fetchChatHistory(phone, isSilentPolling = false) {
     try {
         const res = await fetch(`/api/chat/${phone}`);
         const data = await res.json();
         const container = document.getElementById('chat-history');
         
         if (!data.history || data.history.length === 0) {
-            container.innerHTML = '<div style="text-align:center; padding: 20px; color: #666;">No conversation history yet.</div>';
+            if (!isSilentPolling) container.innerHTML = '<div style="text-align:center; padding: 20px; color: #666;">No conversation history yet.</div>';
             return;
         }
 
-        container.innerHTML = data.history.map(msg => {
+        const html = data.history.map(msg => {
             const isIncoming = msg.direction === 'incoming';
             return `
                 <div class="chat-bubble ${isIncoming ? 'incoming' : 'outgoing'}">
@@ -386,10 +397,16 @@ async function fetchChatHistory(phone) {
             `;
         }).join('');
         
-        // Auto-scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        // Only update innerHTML if it changed to prevent annoying scroll jumps
+        if (container.innerHTML !== html) {
+            const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+            container.innerHTML = html;
+            if (isScrolledToBottom || !isSilentPolling) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
     } catch (err) {
-        document.getElementById('chat-history').innerHTML = '<div style="text-align:center; color: red;">Failed to load history.</div>';
+        if (!isSilentPolling) document.getElementById('chat-history').innerHTML = '<div style="text-align:center; color: red;">Failed to load history.</div>';
     }
 }
 
