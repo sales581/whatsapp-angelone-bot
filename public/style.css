@@ -528,13 +528,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .chat-bubble.incoming {
     align-self: flex-start;
     background: #e2e8f0;
-    color: var(--text-main);
-    border-bottom-left-radius: 4px;
+    color: #1a1e35;
 }
 
 .chat-bubble.outgoing {
     align-self: flex-end;
-    background: var(--primary-color);
+    background: var(--purple);
     color: white;
     border-bottom-right-radius: 4px;
 }
