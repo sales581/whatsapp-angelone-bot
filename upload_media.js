@@ -10,7 +10,7 @@ async function uploadMedia() {
     const data = new FormData();
     data.append('messaging_product', 'whatsapp');
     data.append('type', 'video/mp4');
-    data.append('file', fs.createReadStream('./public/tpf_video_v2.mp4'));
+    data.append('file', fs.createReadStream('./public/tpf_video_v3.mp4'));
 
     try {
         const response = await axios.post(`https://graph.facebook.com/v21.0/${phoneId}/media`, data, {
