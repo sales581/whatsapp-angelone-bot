@@ -282,6 +282,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .badge-sent { background: rgba(84,160,255,0.15); color: var(--blue); }
 .badge-delivered { background: rgba(0,210,211,0.15); color: var(--cyan); }
 .badge-read { background: rgba(95,39,205,0.2); color: #a29bfe; }
+.badge-replied { background: rgba(255,159,67,0.2); color: #ff9f43; border: 1px solid #ff9f43; }
 .badge-failed { background: rgba(255,107,107,0.15); color: var(--red); }
 
 /* ============================================================

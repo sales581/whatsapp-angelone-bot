@@ -177,6 +177,13 @@ function updateClientStage(phone, stage) {
 function logIncomingMessage(phone, content) {
     const db = loadDB();
     db.message_log.push({ phone, direction: 'incoming', content, timestamp: now() });
+    
+    // Update the client's status to 'replied' so the dashboard knows
+    const client = db.clients.find(c => c.phone === phone);
+    if (client) {
+        client.message_status = 'replied';
+    }
+    
     saveDB(db);
 }
 
