@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DB_FILE = path.join(__dirname, 'clients_db.json');
+const DB_DIR = process.env.DATA_DIR || __dirname;
+const DB_FILE = path.join(DB_DIR, 'clients_db.json');
 
 // ============================================================
 // LOAD & SAVE DATABASE (JSON file)
