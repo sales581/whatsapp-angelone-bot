@@ -213,30 +213,43 @@ function getAllClients(callback) {
 }
 
 // ============================================================
-// GET CLIENTS BY STAGE
+// GET CLIENTS BY STAGE (For Bulk Sending)
 // ============================================================
 function getClientsByStage(stage, callback) {
     const db = loadDB();
-    const clients = stage === 'all' ? db.clients : db.clients.filter(c => c.angel_stage === stage);
+    let clients = db.clients;
+    
+    if (stage === 'lead') {
+        // 'lead' now targets New/Unread Leads (Exclude read/replied)
+        clients = clients.filter(c => c.angel_stage === 'lead' && c.message_status !== 'read' && c.message_status !== 'replied');
+    } else if (stage === 'read') {
+        // 'read' targets Leads who read but took no action
+        clients = clients.filter(c => c.angel_stage === 'lead' && c.message_status === 'read');
+    } else if (stage !== 'all') {
+        clients = clients.filter(c => c.angel_stage === stage);
+    }
+    
     callback(clients);
 }
 
 // ============================================================
-// GET STATS
+// GET STATS (For Dashboard UI)
 // ============================================================
 function getStats(callback) {
     const db = loadDB();
     const c = db.clients;
     callback({
         total: c.length,
-        sent: c.filter(x => ['sent','delivered','read'].includes(x.message_status)).length,
-        delivered: c.filter(x => ['delivered','read'].includes(x.message_status)).length,
-        read: c.filter(x => x.message_status === 'read').length,
+        sent: c.filter(x => ['sent','delivered','read','replied'].includes(x.message_status)).length,
+        delivered: c.filter(x => ['delivered','read','replied'].includes(x.message_status)).length,
+        // UI uses 'read' for the "Read but No Action" bulk send box
+        read: c.filter(x => x.angel_stage === 'lead' && x.message_status === 'read').length,
         clicked: c.filter(x => x.clicked_link).length,
         account_opened: c.filter(x => x.angel_stage === 'account_opened').length,
         funded: c.filter(x => x.angel_stage === 'funded').length,
         incomplete: c.filter(x => x.angel_stage === 'incomplete').length,
-        leads: c.filter(x => x.angel_stage === 'lead').length,
+        // UI uses 'leads' for the "New/Unread Leads" bulk send box
+        leads: c.filter(x => x.angel_stage === 'lead' && x.message_status !== 'read' && x.message_status !== 'replied').length,
     });
 }
 

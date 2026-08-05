@@ -149,7 +149,7 @@ function openSendModal(stage, msgType) {
     currentSendMsgType = msgType;
 
     const labels = {
-        lead: 'New Leads',
+        lead: 'New / Unread Leads',
         link_clicked: 'Link Clicked (No Action)',
         incomplete: 'Incomplete Applications',
         account_opened: 'Account Opened',
