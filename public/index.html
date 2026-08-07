@@ -27,6 +27,9 @@
         <a href="#" class="nav-item" data-tab="clients" onclick="switchTab('clients', this)">
             <span class="nav-icon">👥</span> Clients
         </a>
+        <a href="#" class="nav-item" data-tab="queries" onclick="switchTab('queries', this)">
+            <span class="nav-icon">❓</span> New Queries
+        </a>
         <a href="#" class="nav-item" data-tab="messaging" onclick="switchTab('messaging', this)">
             <span class="nav-icon">💬</span> Send Messages
         </a>
@@ -175,6 +178,30 @@
                     </thead>
                     <tbody id="clients-tbody">
                         <tr><td colspan="9" class="empty-row">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB: NEW QUERIES -->
+    <section id="tab-queries" class="tab-content">
+        <div class="section-card">
+            <div class="table-header">
+                <h2 class="section-title">❓ New Queries (Unknown Senders)</h2>
+            </div>
+            <div class="table-wrap">
+                <table id="queries-table">
+                    <thead>
+                        <tr>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Last Message Received</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queries-tbody">
+                        <tr><td colspan="4" class="empty-row">No new queries found.</td></tr>
                     </tbody>
                 </table>
             </div>

@@ -29,6 +29,7 @@ function switchTab(tab, el) {
     const titles = {
         dashboard: 'Dashboard',
         clients: 'Clients',
+        queries: 'New Queries',
         messaging: 'Send Messages',
         upload: 'Upload CSV',
         addclient: 'Add Client',
@@ -38,9 +39,42 @@ function switchTab(tab, el) {
     // Load data for that tab
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'clients') loadClients();
+    if (tab === 'queries') loadQueries();
     if (tab === 'messaging') loadMessagingCounts();
 
     return false;
+}
+
+// ============================================================
+// QUERIES TABLE
+// ============================================================
+async function loadQueries() {
+    try {
+        if (!allClients.length) {
+            const res = await fetch('/api/clients');
+            allClients = await res.json();
+        }
+        const tbody = document.getElementById('queries-tbody');
+        const queries = allClients.filter(c => c.angel_stage === 'new_query');
+        
+        if (!queries.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No new queries from unknown senders yet.</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = queries.map(c => `
+            <tr>
+                <td>${c.phone}</td>
+                <td><span class="badge badge-replied">New Message</span></td>
+                <td>${c.last_updated ? c.last_updated.substring(0, 16) : '—'}</td>
+                <td>
+                    <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="openChatModal('${c.phone}', '${escapeHtml(c.name)}')">💬 View Chat</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Failed to load queries:', err);
+    }
 }
 
 // ============================================================

@@ -40,7 +40,7 @@ if (USE_PG) {
         // Auto-sync any unknown senders from logs into the clients table
         pool.query(`
             INSERT INTO clients (name, phone, angel_stage, message_status, clicked_link, messages_sent, last_updated, created_at)
-            SELECT DISTINCT 'Unknown Sender', phone, 'lead', 'replied', false, 0, $1, $1
+            SELECT DISTINCT 'Unknown Sender', phone, 'new_query', 'replied', false, 0, $1, $1
             FROM message_log
             WHERE phone NOT IN (SELECT phone FROM clients)
         `, [now()]).catch(console.error);
@@ -226,7 +226,7 @@ function logIncomingMessage(phone, content) {
         // Auto-create client if they don't exist, otherwise update status
         const upsertQuery = `
             INSERT INTO clients (name, phone, angel_stage, message_status, clicked_link, messages_sent, last_updated, created_at)
-            VALUES ($1, $2, 'lead', 'replied', false, 0, $3, $3)
+            VALUES ($1, $2, 'new_query', 'replied', false, 0, $3, $3)
             ON CONFLICT (phone) DO UPDATE 
             SET message_status = 'replied', last_updated = EXCLUDED.last_updated
         `;
