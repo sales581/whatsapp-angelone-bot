@@ -55,17 +55,18 @@ async function loadQueries() {
             allClients = await res.json();
         }
         const tbody = document.getElementById('queries-tbody');
-        const queries = allClients.filter(c => c.angel_stage === 'new_query');
+        // Show ANY client who has replied in the New Queries tab
+        const queries = allClients.filter(c => c.message_status === 'replied');
         
         if (!queries.length) {
-            tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No new queries from unknown senders yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No new queries or replies yet.</td></tr>';
             return;
         }
         
         tbody.innerHTML = queries.map(c => `
             <tr>
-                <td>${c.phone}</td>
-                <td><span class="badge badge-replied">New Message</span></td>
+                <td><strong>${escapeHtml(c.name)}</strong><br>${c.phone}</td>
+                <td><span class="badge badge-replied">New Reply 💬</span></td>
                 <td>${c.last_updated ? c.last_updated.substring(0, 16) : '—'}</td>
                 <td>
                     <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="openChatModal('${c.phone}', '${escapeHtml(c.name)}')">💬 View Chat</button>

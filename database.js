@@ -236,7 +236,24 @@ function logIncomingMessage(phone, content) {
     const db = loadDB();
     db.message_log.push({ phone, direction: 'incoming', content, timestamp: now() });
     const client = db.clients.find(c => c.phone === phone);
-    if (client) client.message_status = 'replied';
+    if (client) {
+        client.message_status = 'replied';
+        client.last_updated = now();
+    } else {
+        db.clients.push({
+            id: db.next_id++,
+            name: 'Unknown Sender',
+            phone: phone,
+            angel_stage: 'new_query',
+            message_status: 'replied',
+            clicked_link: false,
+            messages_sent: 0,
+            last_message_type: null,
+            last_message_time: null,
+            last_updated: now(),
+            created_at: now()
+        });
+    }
     saveDB(db);
 }
 
