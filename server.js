@@ -62,16 +62,20 @@ app.post('/webhook', (req, res) => {
 
                 // Handle AI Auto-Reply
                 (async () => {
-                    const botActive = await db.getClientBotStatus(from);
-                    if (botActive && text) {
-                        const history = await new Promise(resolve => db.getChatHistory(from, resolve));
-                        const prompt = await db.getSystemPrompt();
-                        const aiResponse = await ai.generateReply(prompt, history.history, text);
-                        
-                        if (aiResponse) {
-                            await sendMessage(from, aiResponse);
-                            db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
+                    try {
+                        const botActive = await db.getClientBotStatus(from);
+                        if (botActive && text) {
+                            const history = await new Promise(resolve => db.getChatHistory(from, resolve));
+                            const prompt = await db.getSystemPrompt();
+                            const aiResponse = await ai.generateReply(prompt, history.history, text);
+                            
+                            if (aiResponse) {
+                                await sendMessage(from, aiResponse);
+                                db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
+                            }
                         }
+                    } catch (err) {
+                        console.error('Error in Auto-Reply:', err.message);
                     }
                 })();
             }
