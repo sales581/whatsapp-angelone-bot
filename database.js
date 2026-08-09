@@ -51,6 +51,14 @@ if (USE_PG) {
             FROM message_log
             WHERE phone NOT IN (SELECT phone FROM clients)
         `, [now()]).catch(console.error);
+        
+        // Auto-recover any lost 'replied' statuses from the previous bug
+        pool.query(`
+            UPDATE clients 
+            SET message_status = 'replied' 
+            WHERE phone IN (SELECT DISTINCT phone FROM message_log WHERE direction = 'incoming') 
+            AND message_status NOT IN ('replied', 'read')
+        `).catch(console.error);
     }).catch(console.error);
 } else {
     console.log('✅ JSON Database initialized at:', DB_FILE);
