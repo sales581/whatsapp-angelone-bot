@@ -527,4 +527,26 @@ async function sendManualReply() {
     }
 }
 
+async function markAsResolved() {
+    if (!currentChatPhone) return;
+    try {
+        const res = await fetch('/api/chat/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: currentChatPhone })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Query marked as resolved and removed from New Queries.');
+            closeChatModal();
+            loadQueries(); // Refresh the tab
+            loadDashboard(); // Refresh stats
+        } else {
+            showToast('Failed to mark as resolved.', 'error');
+        }
+    } catch (err) {
+        showToast('Network error.', 'error');
+    }
+}
+
 loadDashboard();

@@ -171,9 +171,27 @@ app.post('/api/chat/reply', async (req, res) => {
     try {
         const result = await sendMessage(phone, message);
         db.logOutgoingMessage(phone, message, 'manual_reply');
+        
         // Turn off AI if a human manually replies
         await db.toggleAutoBot(phone, false);
+        
+        // Mark as 'read' so it leaves the New Queries tab
+        db.markAsResolved(phone);
+        
         res.json({ success: true, data: result });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ============================================================
+// API - MARK AS RESOLVED
+// ============================================================
+app.post('/api/chat/resolve', async (req, res) => {
+    const { phone } = req.body;
+    try {
+        db.markAsResolved(phone);
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }

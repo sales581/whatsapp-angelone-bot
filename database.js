@@ -191,10 +191,10 @@ function updateMessageStatus(phone, status) {
                 const current = order.indexOf(res.rows[0].message_status || 'not_sent');
                 const incoming = order.indexOf(status);
                 if (incoming > current) {
-                    pool.query('UPDATE clients SET message_status = $1, last_updated = $2 WHERE phone = $3', [status, now(), phone]);
+                    pool.query('UPDATE clients SET message_status = $1, last_updated = $2 WHERE phone = $3', [status, now(), phone]).catch(console.error);
                 }
             }
-        });
+        }).catch(console.error);
         return;
     }
     const db = loadDB();
@@ -213,7 +213,7 @@ function updateMessageStatus(phone, status) {
 
 function updateClientStage(phone, stage) {
     if (USE_PG) {
-        pool.query('UPDATE clients SET angel_stage = $1, clicked_link = true, last_updated = $2 WHERE phone = $3', [stage, now(), phone]);
+        pool.query('UPDATE clients SET angel_stage = $1, clicked_link = true, last_updated = $2 WHERE phone = $3', [stage, now(), phone]).catch(console.error);
         return;
     }
     const db = loadDB();
@@ -226,9 +226,23 @@ function updateClientStage(phone, stage) {
     }
 }
 
+function markAsResolved(phone) {
+    if (USE_PG) {
+        pool.query('UPDATE clients SET message_status = $1, last_updated = $2 WHERE phone = $3', ['read', now(), phone]).catch(console.error);
+        return;
+    }
+    const db = loadDB();
+    const idx = db.clients.findIndex(c => c.phone === phone);
+    if (idx >= 0) {
+        db.clients[idx].message_status = 'read';
+        db.clients[idx].last_updated = now();
+        saveDB(db);
+    }
+}
+
 function logIncomingMessage(phone, content) {
     if (USE_PG) {
-        pool.query('INSERT INTO message_log (phone, direction, content, timestamp) VALUES ($1, $2, $3, $4)', [phone, 'incoming', content, now()]);
+        pool.query('INSERT INTO message_log (phone, direction, content, timestamp) VALUES ($1, $2, $3, $4)', [phone, 'incoming', content, now()]).catch(console.error);
         
         // Auto-create client if they don't exist, otherwise update status
         const upsertQuery = `
@@ -237,7 +251,7 @@ function logIncomingMessage(phone, content) {
             ON CONFLICT (phone) DO UPDATE 
             SET message_status = 'replied', last_updated = EXCLUDED.last_updated
         `;
-        pool.query(upsertQuery, ['Unknown Sender', phone, now()]);
+        pool.query(upsertQuery, ['Unknown Sender', phone, now()]).catch(console.error);
         return;
     }
     const db = loadDB();
@@ -267,8 +281,8 @@ function logIncomingMessage(phone, content) {
 
 function logOutgoingMessage(phone, content, message_type) {
     if (USE_PG) {
-        pool.query('UPDATE clients SET messages_sent = COALESCE(messages_sent, 0) + 1, last_message_type = $1, last_message_time = $2, last_updated = $2 WHERE phone = $3', [message_type, now(), phone]);
-        pool.query('INSERT INTO message_log (phone, direction, message_type, content, timestamp) VALUES ($1, $2, $3, $4, $5)', [phone, 'outgoing', message_type, content, now()]);
+        pool.query('UPDATE clients SET messages_sent = COALESCE(messages_sent, 0) + 1, last_message_type = $1, last_message_time = $2, last_updated = $2 WHERE phone = $3', [message_type, now(), phone]).catch(console.error);
+        pool.query('INSERT INTO message_log (phone, direction, message_type, content, timestamp) VALUES ($1, $2, $3, $4, $5)', [phone, 'outgoing', message_type, content, now()]).catch(console.error);
         return;
     }
     const db = loadDB();
@@ -438,5 +452,6 @@ module.exports = {
     getSystemPrompt,
     saveSystemPrompt,
     toggleAutoBot,
-    getClientBotStatus
+    getClientBotStatus,
+    markAsResolved
 };
