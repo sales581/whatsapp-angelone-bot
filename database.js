@@ -234,6 +234,20 @@ function updateClientStage(phone, stage) {
     }
 }
 
+function updateClientName(phone, name) {
+    if (USE_PG) {
+        pool.query('UPDATE clients SET name = $1, last_updated = $2 WHERE phone = $3', [name, now(), phone]).catch(console.error);
+        return;
+    }
+    const db = loadDB();
+    const idx = db.clients.findIndex(c => c.phone === phone);
+    if (idx >= 0) {
+        db.clients[idx].name = name;
+        db.clients[idx].last_updated = now();
+        saveDB(db);
+    }
+}
+
 function markAsResolved(phone) {
     if (USE_PG) {
         pool.query('UPDATE clients SET message_status = $1, last_updated = $2 WHERE phone = $3', ['read', now(), phone]).catch(console.error);
@@ -451,5 +465,6 @@ module.exports = {
     saveSystemPrompt,
     toggleAutoBot,
     getClientBotStatus,
-    markAsResolved
+    markAsResolved,
+    updateClientName
 };

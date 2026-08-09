@@ -45,7 +45,12 @@ async function generateReply(systemPrompt, history, userMessage) {
         });
         fullPrompt += "\n";
     }
-    fullPrompt += `Client: ${userMessage}\nYou:`;
+    
+    fullPrompt += `
+CRITICAL INSTRUCTION: If the client explicitly introduces themselves by name in this message (e.g., "I am Rahul", "My name is Priya"), you MUST append this exact tag at the very end of your response: [NAME: Rahul]. Do not use this tag if they don't introduce themselves.
+
+Client: ${userMessage}
+You:`;
 
     // Bulletproof Fallback: Try every single model until one works
     for (const modelName of availableModels) {

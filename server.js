@@ -69,9 +69,19 @@ app.post('/webhook', (req, res) => {
                         if (botActive && text) {
                             const history = await new Promise(resolve => db.getChatHistory(from, resolve));
                             const prompt = await db.getSystemPrompt();
-                            const aiResponse = await ai.generateReply(prompt, history.history, text);
+                            let aiResponse = await ai.generateReply(prompt, history.history, text);
                             
                             if (aiResponse) {
+                                // Check if AI extracted a name from the conversation
+                                const nameMatch = aiResponse.match(/\[NAME:\s*(.+?)\]/);
+                                if (nameMatch) {
+                                    const extractedName = nameMatch[1].trim();
+                                    console.log(`🤖 AI Extracted Name: ${extractedName}`);
+                                    db.updateClientName(from, extractedName);
+                                    // Remove the tag from the final message
+                                    aiResponse = aiResponse.replace(/\[NAME:\s*(.+?)\]/, '').trim();
+                                }
+                                
                                 await sendMessage(from, aiResponse);
                                 db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
                             }
