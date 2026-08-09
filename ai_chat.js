@@ -16,7 +16,7 @@ function initAI(apiKey) {
 async function generateReply(systemPrompt, history, userMessage) {
     if (!genAI) return null;
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
         
         let fullPrompt = `${systemPrompt}\n\n`;
         
