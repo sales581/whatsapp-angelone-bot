@@ -213,7 +213,7 @@ app.post('/api/send-bulk', async (req, res) => {
             try {
                 await sendWhatsAppMessage(client.phone, client.name, message_type, stage);
                 db.updateMessageStatus(client.phone, 'sent');
-                db.logMessageSent(client.phone, message_type);
+                db.logOutgoingMessage(client.phone, '[Template Sent]', message_type);
                 sent++;
                 await sleep(300); // Avoid rate limiting
             } catch (err) {

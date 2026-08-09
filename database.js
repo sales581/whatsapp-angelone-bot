@@ -429,7 +429,6 @@ module.exports = {
     updateMessageStatus,
     updateClientStage,
     logIncomingMessage,
-    logMessageSent,
     logOutgoingMessage,
     getAllClients,
     getClientsByStage,
