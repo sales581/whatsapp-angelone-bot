@@ -57,8 +57,10 @@ app.post('/webhook', (req, res) => {
                 const msg = changes.messages[0];
                 const from = msg.from;
                 const text = msg.text?.body || '';
-                console.log(`Incoming from ${from}: ${text}`);
-                db.logIncomingMessage(from, text);
+                const contactName = changes.contacts?.[0]?.profile?.name || 'Unknown Sender';
+                
+                console.log(`Incoming from ${contactName} (${from}): ${text}`);
+                db.logIncomingMessage(from, text, contactName);
 
                 // Handle AI Auto-Reply
                 (async () => {

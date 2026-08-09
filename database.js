@@ -248,7 +248,7 @@ function markAsResolved(phone) {
     }
 }
 
-function logIncomingMessage(phone, content) {
+function logIncomingMessage(phone, content, contactName = 'Unknown Sender') {
     if (USE_PG) {
         pool.query('INSERT INTO message_log (phone, direction, content, timestamp) VALUES ($1, $2, $3, $4)', [phone, 'incoming', content, now()]).catch(console.error);
         
@@ -257,32 +257,22 @@ function logIncomingMessage(phone, content) {
             INSERT INTO clients (name, phone, angel_stage, message_status, clicked_link, messages_sent, last_updated, created_at)
             VALUES ($1, $2, 'new_query', 'replied', false, 0, $3, $3)
             ON CONFLICT (phone) DO UPDATE 
-            SET message_status = 'replied', last_updated = EXCLUDED.last_updated
+            SET message_status = 'replied', last_updated = EXCLUDED.last_updated,
+                name = CASE WHEN clients.name = 'Unknown Sender' THEN EXCLUDED.name ELSE clients.name END
         `;
-        pool.query(upsertQuery, ['Unknown Sender', phone, now()]).catch(console.error);
+        pool.query(upsertQuery, [contactName, phone, now()]).catch(console.error);
         return;
     }
     const db = loadDB();
     db.message_log.push({ phone, direction: 'incoming', content, timestamp: now() });
-    const client = db.clients.find(c => c.phone === phone);
-    if (client) {
+    
+    let client = db.clients.find(c => c.phone === phone);
+    if (!client) {
+        db.clients.push({ name: contactName, phone, angel_stage: 'new_query', message_status: 'replied', clicked_link: false, messages_sent: 0, last_updated: now(), created_at: now() });
+    } else {
         client.message_status = 'replied';
         client.last_updated = now();
-    } else {
-        db.clients.push({
-            id: db.next_id++,
-            name: 'Unknown Sender',
-            phone: phone,
-            angel_stage: 'new_query',
-            message_status: 'replied',
-            clicked_link: false,
-            messages_sent: 0,
-            last_message_type: null,
-            last_message_time: null,
-            last_updated: now(),
-            created_at: now(),
-            auto_bot_active: true
-        });
+        if (client.name === 'Unknown Sender') client.name = contactName;
     }
     saveDB(db);
 }
