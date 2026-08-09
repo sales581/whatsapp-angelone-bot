@@ -171,10 +171,16 @@ app.get('/api/chat/:phone', async (req, res) => {
 // API - SEND MANUAL REPLY
 // ============================================================
 app.post('/api/chat/reply', async (req, res) => {
-    const { phone, message } = req.body;
+    const { phone, text, message } = req.body;
+    const msgContent = text || message; // Handle both variable names just in case
+    
+    if (!msgContent) {
+        return res.status(400).json({ success: false, error: 'Message content is empty' });
+    }
+
     try {
-        const result = await sendMessage(phone, message);
-        db.logOutgoingMessage(phone, message, 'manual_reply');
+        const result = await sendMessage(phone, msgContent);
+        db.logOutgoingMessage(phone, msgContent, 'manual_reply');
         
         // Turn off AI if a human manually replies
         await db.toggleAutoBot(phone, false);
