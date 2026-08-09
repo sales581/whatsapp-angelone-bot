@@ -33,6 +33,7 @@ function switchTab(tab, el) {
         messaging: 'Send Messages',
         upload: 'Upload CSV',
         addclient: 'Add Client',
+        bot: 'AI Bot Settings'
     };
     document.getElementById('page-title').textContent = titles[tab] || tab;
 
@@ -41,8 +42,50 @@ function switchTab(tab, el) {
     if (tab === 'clients') loadClients();
     if (tab === 'queries') loadQueries();
     if (tab === 'messaging') loadMessagingCounts();
+    if (tab === 'bot') loadBotSettings();
 
     return false;
+}
+
+// ==========================================
+// AI BOT SETTINGS
+// ==========================================
+
+async function loadBotSettings() {
+    try {
+        const res = await fetch('/api/bot-settings');
+        const data = await res.json();
+        document.getElementById('bot-prompt').value = data.prompt || '';
+    } catch (e) { console.error('Failed to load bot settings', e); }
+}
+
+async function saveBotSettings() {
+    const prompt = document.getElementById('bot-prompt').value;
+    try {
+        const res = await fetch('/api/bot-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+        const statusEl = document.getElementById('bot-settings-status');
+        if (data.success) {
+            statusEl.textContent = '✅ Settings saved successfully!';
+            setTimeout(() => statusEl.textContent = '', 3000);
+        }
+    } catch (e) { console.error('Failed to save bot settings', e); }
+}
+
+async function toggleBotActive(active) {
+    if (!currentChatPhone) return;
+    try {
+        await fetch('/api/bot-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: currentChatPhone, active })
+        });
+        showToast(active ? 'Auto-Bot Activated' : 'Auto-Bot Paused');
+    } catch (e) { console.error('Failed to toggle bot', e); }
 }
 
 // ============================================================
@@ -415,6 +458,10 @@ async function fetchChatHistory(phone, isSilentPolling = false) {
     try {
         const res = await fetch(`/api/chat/${phone}`);
         const data = await res.json();
+        
+        const toggle = document.getElementById('bot-active-toggle');
+        if (toggle && !isSilentPolling) toggle.checked = !!data.botActive;
+
         const container = document.getElementById('chat-history');
         
         if (!data.history || data.history.length === 0) {
@@ -465,8 +512,10 @@ async function sendManualReply() {
         
         if (data.success) {
             input.value = '';
+            const toggle = document.getElementById('bot-active-toggle');
+            if (toggle) toggle.checked = false;
+            fetchChatHistory(currentChatPhone, true);
             showToast('Reply sent successfully!');
-            await fetchChatHistory(currentChatPhone); // Refresh chat
         } else {
             showToast(data.error || 'Failed to send reply', 'error');
         }

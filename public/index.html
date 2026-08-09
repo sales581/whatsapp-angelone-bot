@@ -25,10 +25,16 @@
             <span class="nav-icon">📊</span> Dashboard
         </a>
         <a href="#" class="nav-item" data-tab="clients" onclick="switchTab('clients', this)">
-            <span class="nav-icon">👥</span> Clients
+            <span class="icon">👥</span>
+            Clients
         </a>
         <a href="#" class="nav-item" data-tab="queries" onclick="switchTab('queries', this)">
-            <span class="nav-icon">❓</span> New Queries
+            <span class="icon">❓</span>
+            New Queries
+        </a>
+        <a href="#" class="nav-item" data-tab="bot" onclick="switchTab('bot', this)">
+            <span class="icon">🤖</span>
+            Bot Settings
         </a>
         <a href="#" class="nav-item" data-tab="messaging" onclick="switchTab('messaging', this)">
             <span class="nav-icon">💬</span> Send Messages
@@ -133,6 +139,20 @@
                     <div class="funnel-bar"><span id="f-funded">0</span> Funded</div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- TAB: BOT SETTINGS -->
+    <section id="tab-bot" class="tab-content">
+        <div class="section-card">
+            <h2 class="section-title">🤖 AI Chatbot Settings</h2>
+            <p class="section-desc">Configure the instructions your AI chatbot will follow when replying to users.</p>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>System Prompt (The AI's "Brain")</label>
+                <textarea id="bot-prompt" rows="8" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #334155; background: #0f172a; color: white;" placeholder="Tell the AI who it is and what its goals are..."></textarea>
+            </div>
+            <button class="btn-primary" onclick="saveBotSettings()">Save Settings</button>
+            <div id="bot-settings-status" style="margin-top: 10px; color: #4ade80;"></div>
         </div>
     </section>
 
@@ -328,7 +348,13 @@
     <div class="modal chat-modal-content">
         <div class="modal-header">
             <h3 id="chat-modal-title">Chat History</h3>
-            <button onclick="closeChatModal()" class="modal-close">✕</button>
+            <div>
+                <label style="display: inline-flex; align-items: center; cursor: pointer; margin-right: 15px; font-size: 0.9em; font-weight: normal;">
+                    <input type="checkbox" id="bot-active-toggle" onchange="toggleBotActive(this.checked)" style="margin-right: 5px;">
+                    🤖 Auto-Bot
+                </label>
+                <button onclick="closeChatModal()" class="modal-close">✕</button>
+            </div>
         </div>
         <div class="modal-body chat-history-container" id="chat-history">
             <!-- Chat messages injected here -->

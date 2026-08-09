@@ -7,6 +7,10 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const db = require('./database');
+const ai = require('./ai_chat');
+
+// Initialize AI if API key is provided
+ai.initAI(process.env.GEMINI_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +59,21 @@ app.post('/webhook', (req, res) => {
                 const text = msg.text?.body || '';
                 console.log(`Incoming from ${from}: ${text}`);
                 db.logIncomingMessage(from, text);
+
+                // Handle AI Auto-Reply
+                (async () => {
+                    const botActive = await db.getClientBotStatus(from);
+                    if (botActive && text) {
+                        const history = await new Promise(resolve => db.getChatHistory(from, resolve));
+                        const prompt = await db.getSystemPrompt();
+                        const aiResponse = await ai.generateReply(prompt, history.history, text);
+                        
+                        if (aiResponse) {
+                            await sendMessage(from, aiResponse);
+                            db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
+                        }
+                    }
+                })();
             }
             // Status update (sent, delivered, read)
             if (changes.statuses?.[0]) {
@@ -136,9 +155,11 @@ app.delete('/api/clear', (req, res) => {
 // ============================================================
 // API - GET CHAT HISTORY
 // ============================================================
-app.get('/api/chat/:phone', (req, res) => {
-    db.getChatHistory(req.params.phone, (history) => {
-        res.json({ success: true, history });
+app.get('/api/chat/:phone', async (req, res) => {
+    const phone = req.params.phone;
+    const botActive = await db.getClientBotStatus(phone);
+    db.getChatHistory(phone, (data) => {
+        res.json({ success: true, history: data.history, botActive });
     });
 });
 
@@ -146,33 +167,33 @@ app.get('/api/chat/:phone', (req, res) => {
 // API - SEND MANUAL REPLY
 // ============================================================
 app.post('/api/chat/reply', async (req, res) => {
-    const { phone, text } = req.body;
-    if (!phone || !text) return res.status(400).json({ error: 'Phone and text are required' });
-
-    const token = process.env.META_ACCESS_TOKEN;
-    const phoneNumberId = process.env.PHONE_NUMBER_ID;
-
-    const payload = {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phone,
-        type: 'text',
-        text: { preview_url: false, body: text }
-    };
-
+    const { phone, message } = req.body;
     try {
-        await axios.post(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, payload, {
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-        
-        // Log it locally
-        db.logMessageSent(phone, 'manual_reply');
-        
-        res.json({ success: true });
-    } catch (err) {
-        console.error(`Failed to send manual reply to ${phone}:`, err.response?.data || err.message);
-        res.status(500).json({ error: 'Failed to send message via Meta API' });
+        const result = await sendMessage(phone, message);
+        db.logOutgoingMessage(phone, message, 'manual_reply');
+        // Turn off AI if a human manually replies
+        await db.toggleAutoBot(phone, false);
+        res.json({ success: true, data: result });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
+});
+
+// ================= AI SETTINGS ROUTES =================
+
+app.get('/api/bot-settings', async (req, res) => {
+    const prompt = await db.getSystemPrompt();
+    res.json({ prompt });
+});
+
+app.post('/api/bot-settings', async (req, res) => {
+    await db.saveSystemPrompt(req.body.prompt);
+    res.json({ success: true });
+});
+
+app.post('/api/bot-toggle', async (req, res) => {
+    await db.toggleAutoBot(req.body.phone, req.body.active);
+    res.json({ success: true });
 });
 
 // ============================================================
@@ -218,6 +239,22 @@ app.post('/api/add-client', (req, res) => {
 // ============================================================
 // WHATSAPP MESSAGING FUNCTION (Using Approved Templates)
 // ============================================================
+async function sendMessage(phone, text) {
+    const token = process.env.META_ACCESS_TOKEN;
+    const phoneNumberId = process.env.PHONE_NUMBER_ID;
+    const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { preview_url: false, body: text }
+    };
+    const response = await axios.post(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, payload, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    return response.data;
+}
+
 async function sendWhatsAppMessage(phone, name, message_type, stage) {
     const token = process.env.META_ACCESS_TOKEN;
     const phoneNumberId = process.env.PHONE_NUMBER_ID;

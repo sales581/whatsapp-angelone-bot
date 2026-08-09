@@ -25,7 +25,8 @@ if (USE_PG) {
             last_message_type TEXT,
             last_message_time TEXT,
             last_updated TEXT,
-            created_at TEXT
+            created_at TEXT,
+            auto_bot_active BOOLEAN DEFAULT TRUE
         );
         CREATE TABLE IF NOT EXISTS message_log (
             id SERIAL PRIMARY KEY,
@@ -35,7 +36,13 @@ if (USE_PG) {
             content TEXT,
             timestamp TEXT
         );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
     `).then(() => {
+        // Run migrations if needed
+        pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS auto_bot_active BOOLEAN DEFAULT TRUE').catch(()=>console.log('Column already exists'));
         console.log('✅ PostgreSQL Database initialized');
         // Auto-sync any unknown senders from logs into the clients table
         pool.query(`
@@ -251,16 +258,17 @@ function logIncomingMessage(phone, content) {
             last_message_type: null,
             last_message_time: null,
             last_updated: now(),
-            created_at: now()
+            created_at: now(),
+            auto_bot_active: true
         });
     }
     saveDB(db);
 }
 
-function logMessageSent(phone, message_type) {
+function logOutgoingMessage(phone, content, message_type) {
     if (USE_PG) {
         pool.query('UPDATE clients SET messages_sent = COALESCE(messages_sent, 0) + 1, last_message_type = $1, last_message_time = $2, last_updated = $2 WHERE phone = $3', [message_type, now(), phone]);
-        pool.query('INSERT INTO message_log (phone, direction, message_type, timestamp) VALUES ($1, $2, $3, $4)', [phone, 'outgoing', message_type, now()]);
+        pool.query('INSERT INTO message_log (phone, direction, message_type, content, timestamp) VALUES ($1, $2, $3, $4, $5)', [phone, 'outgoing', message_type, content, now()]);
         return;
     }
     const db = loadDB();
@@ -271,7 +279,7 @@ function logMessageSent(phone, message_type) {
         db.clients[idx].last_message_time = now();
         db.clients[idx].last_updated = now();
     }
-    db.message_log.push({ phone, direction: 'outgoing', message_type, timestamp: now() });
+    db.message_log.push({ phone, direction: 'outgoing', message_type, content, timestamp: now() });
     saveDB(db);
 }
 
@@ -360,12 +368,59 @@ function clearAllClients(callback) {
 
 function getChatHistory(phone, callback) {
     if (USE_PG) {
-        pool.query('SELECT * FROM message_log WHERE phone = $1 ORDER BY id ASC', [phone]).then(res => callback(res.rows));
+        pool.query('SELECT * FROM message_log WHERE phone = $1 ORDER BY id ASC', [phone]).then(res => callback({ history: res.rows }));
         return;
     }
     const db = loadDB();
     const history = db.message_log.filter(m => m.phone === phone);
-    callback(history);
+    callback({ history });
+}
+
+// ================= AI FUNCTIONS =================
+
+async function getSystemPrompt() {
+    if (USE_PG) {
+        try {
+            const res = await pool.query("SELECT value FROM settings WHERE key = 'bot_system_prompt'");
+            return res.rows[0]?.value || 'You are a helpful assistant for Trilok Singh, an Angel One partner. Answer questions politely and encourage users to open a free Demat account.';
+        } catch (e) { return ''; }
+    }
+    const db = loadDB();
+    return db.settings?.bot_system_prompt || 'You are a helpful assistant for Trilok Singh, an Angel One partner. Answer questions politely and encourage users to open a free Demat account.';
+}
+
+async function saveSystemPrompt(prompt) {
+    if (USE_PG) {
+        await pool.query("INSERT INTO settings (key, value) VALUES ('bot_system_prompt', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [prompt]);
+        return;
+    }
+    const db = loadDB();
+    if (!db.settings) db.settings = {};
+    db.settings.bot_system_prompt = prompt;
+    saveDB(db);
+}
+
+async function toggleAutoBot(phone, active) {
+    if (USE_PG) {
+        await pool.query("UPDATE clients SET auto_bot_active = $1 WHERE phone = $2", [active, phone]);
+        return;
+    }
+    const db = loadDB();
+    const client = db.clients.find(c => c.phone === phone);
+    if (client) {
+        client.auto_bot_active = active;
+        saveDB(db);
+    }
+}
+
+async function getClientBotStatus(phone) {
+    if (USE_PG) {
+        const res = await pool.query("SELECT auto_bot_active FROM clients WHERE phone = $1", [phone]);
+        return res.rows[0] ? (res.rows[0].auto_bot_active !== false) : true;
+    }
+    const db = loadDB();
+    const client = db.clients.find(c => c.phone === phone);
+    return client ? (client.auto_bot_active !== false) : true;
 }
 
 module.exports = {
@@ -375,9 +430,14 @@ module.exports = {
     updateClientStage,
     logIncomingMessage,
     logMessageSent,
+    logOutgoingMessage,
     getAllClients,
     getClientsByStage,
     getStats,
     clearAllClients,
     getChatHistory,
+    getSystemPrompt,
+    saveSystemPrompt,
+    toggleAutoBot,
+    getClientBotStatus
 };
