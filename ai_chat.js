@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let genAI = null;
-let currentModelName = "gemini-1.5-flash"; // Default fallback
+let availableModels = ["gemini-pro"]; // Absolute fallback
 
 async function initAI(apiKey) {
     if (apiKey) {
@@ -9,23 +9,20 @@ async function initAI(apiKey) {
             genAI = new GoogleGenerativeAI(apiKey);
             console.log('✅ Google Gemini API initialized');
             
-            // Auto-detect available model to prevent 404s
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
                 const data = await response.json();
+                
+                // Get all text generation models and sort them (newest/pro first)
                 const models = (data.models || [])
                     .filter(m => m.supportedGenerationMethods.includes('generateContent'))
-                    .map(m => m.name.replace('models/', ''));
+                    .map(m => m.name.replace('models/', ''))
+                    .filter(m => m.includes('flash') || m.includes('pro'));
                 
-                console.log('Available models:', models.join(', '));
-                
-                if (models.includes('gemini-2.5-flash')) currentModelName = 'gemini-2.5-flash';
-                else if (models.includes('gemini-2.0-flash')) currentModelName = 'gemini-2.0-flash';
-                else if (models.includes('gemini-1.5-flash')) currentModelName = 'gemini-1.5-flash';
-                else if (models.includes('gemini-pro')) currentModelName = 'gemini-pro';
-                else if (models.length > 0) currentModelName = models[0];
-                
-                console.log('✅ Selected Gemini Model:', currentModelName);
+                if (models.length > 0) {
+                    availableModels = models;
+                }
+                console.log('✅ Detected available fallback models:', availableModels.join(', '));
             } catch (err) {
                 console.error('Failed to fetch available models:', err.message);
             }
@@ -37,30 +34,34 @@ async function initAI(apiKey) {
 
 async function generateReply(systemPrompt, history, userMessage) {
     if (!genAI) return null;
-    try {
-        const model = genAI.getGenerativeModel({ model: currentModelName });
-        
-        let fullPrompt = `${systemPrompt}\n\n`;
-        
-        if (history && history.length > 0) {
-            fullPrompt += "Conversation History:\n";
-            // Get last 10 messages for context
-            const recentHistory = history.slice(-10);
-            recentHistory.forEach(msg => {
-                const role = msg.direction === 'incoming' ? 'Client' : 'You';
-                fullPrompt += `${role}: ${msg.content}\n`;
-            });
-            fullPrompt += "\n";
-        }
-        
-        fullPrompt += `Client: ${userMessage}\nYou:`;
-
-        const result = await model.generateContent(fullPrompt);
-        return result.response.text().trim();
-    } catch (e) {
-        console.error("AI Generation error:", e);
-        return null;
+    
+    let fullPrompt = `${systemPrompt}\n\n`;
+    if (history && history.length > 0) {
+        fullPrompt += "Conversation History:\n";
+        const recentHistory = history.slice(-10);
+        recentHistory.forEach(msg => {
+            const role = msg.direction === 'incoming' ? 'Client' : 'You';
+            fullPrompt += `${role}: ${msg.content}\n`;
+        });
+        fullPrompt += "\n";
     }
+    fullPrompt += `Client: ${userMessage}\nYou:`;
+
+    // Bulletproof Fallback: Try every single model until one works
+    for (const modelName of availableModels) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(fullPrompt);
+            console.log(`✅ Successfully generated reply using model: ${modelName}`);
+            return result.response.text().trim();
+        } catch (e) {
+            console.error(`❌ Model ${modelName} rejected the request: ${e.message}`);
+            // Continue to the next model in the list
+        }
+    }
+    
+    console.error("❌ ALL models failed to generate a reply.");
+    return null;
 }
 
 module.exports = { initAI, generateReply };
