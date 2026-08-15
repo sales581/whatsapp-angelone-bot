@@ -110,6 +110,32 @@ app.post('/webhook', (req, res) => {
 });
 
 // ============================================================
+// WEBHOOK - GOOGLE SHEETS / NEW LEADS
+// ============================================================
+app.post('/api/webhook/new-lead', (req, res) => {
+    let { name, phone, source } = req.body;
+    
+    if (!phone) {
+        return res.status(400).json({ success: false, error: "Phone number is required" });
+    }
+    
+    // Add client to database
+    db.addClient(name || 'Unknown Lead', phone, 'lead', async (client) => {
+        try {
+            // Send the initial welcome video template
+            await sendWhatsAppMessage(client.phone, client.name, 'lead', 'lead');
+            db.updateMessageStatus(client.phone, 'sent');
+            db.logOutgoingMessage(client.phone, '[Auto Welcome Template Sent]', 'lead');
+            console.log(`[Google Sheets Webhook] Successfully added and welcomed lead: ${client.name} (${client.phone})`);
+            res.json({ success: true, message: "Lead added and welcome message sent!" });
+        } catch(e) {
+            console.error("[Google Sheets Webhook] Failed to send welcome message:", e.message);
+            res.status(500).json({ success: false, error: "Lead added but message failed to send." });
+        }
+    });
+});
+
+// ============================================================
 // 4. TRACKING LINK (Who clicked the Angel One link)
 // ============================================================
 app.get('/link/:phone', (req, res) => {
