@@ -79,7 +79,7 @@ function now() {
     return new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 }
 function normalizePhone(phone) {
-    phone = phone.toString().replace(/[\s\-\(\)\.]/g, '');
+    phone = phone.toString().replace(/\D/g, '');
     if (phone.startsWith('0')) phone = '91' + phone.slice(1);
     if (!phone.startsWith('91') && phone.length === 10) phone = '91' + phone;
     return phone;
