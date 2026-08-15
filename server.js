@@ -266,11 +266,27 @@ app.post('/api/bot-toggle', async (req, res) => {
 // 8. API - SEND BULK WHATSAPP MESSAGE BY STAGE
 // ============================================================
 app.post('/api/send-bulk', async (req, res) => {
-    const { stage, message_type } = req.body;
+    const { stage, message_type, date_after } = req.body;
     if (!stage) return res.status(400).json({ error: 'Stage is required' });
 
     db.getClientsByStage(stage, async (clients) => {
-        if (!clients.length) return res.json({ success: true, sent: 0, message: 'No clients found for this stage.' });
+        // Apply date filter if requested
+        if (date_after && clients.length > 0) {
+            const filterDate = new Date(date_after);
+            // created_at is stored as "DD/MM/YYYY, HH:MM:SS" from toLocaleString('en-IN')
+            clients = clients.filter(c => {
+                if (!c.created_at) return true;
+                const datePart = c.created_at.split(',')[0];
+                const parts = datePart.split('/');
+                if (parts.length === 3) {
+                    const clientDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+                    return clientDate >= filterDate;
+                }
+                return true; // fallback if parsing fails
+            });
+        }
+
+        if (!clients.length) return res.json({ success: true, sent: 0, message: 'No clients found for this stage matching the date filter.' });
 
         let sent = 0;
         let failed = 0;

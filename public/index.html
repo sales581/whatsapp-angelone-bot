@@ -333,7 +333,14 @@
             <button onclick="closeSendModal()" class="modal-close">✕</button>
         </div>
         <div class="modal-body">
-            <p id="modal-desc">Are you sure you want to send a WhatsApp message to all clients in this group?</p>
+            <p id="modal-desc" style="margin-bottom:15px;">Are you sure you want to send a WhatsApp message to all clients in this group?</p>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px; color: #e2e8f0;">Optional: Filter by Date</label>
+                <input type="date" id="bulk-date-after" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+                <p style="font-size: 11px; color: #94a3b8; margin-top: 5px;">If set, only leads added on or after this date will receive the message.</p>
+            </div>
+            
             <div class="modal-warning">⚠️ This will send real WhatsApp messages. Make sure your Meta token is active before proceeding.</div>
         </div>
         <div class="modal-footer">

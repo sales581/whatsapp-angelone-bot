@@ -251,11 +251,13 @@ async function confirmSend() {
     btn.textContent = 'Sending...';
     btn.disabled = true;
 
+    const dateAfter = document.getElementById('bulk-date-after')?.value;
+
     try {
         const res = await fetch('/api/send-bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stage: currentSendStage, message_type: currentSendMsgType }),
+            body: JSON.stringify({ stage: currentSendStage, message_type: currentSendMsgType, date_after: dateAfter }),
         });
         const data = await res.json();
 
@@ -512,8 +514,7 @@ async function sendManualReply() {
         
         if (data.success) {
             input.value = '';
-            const toggle = document.getElementById('bot-active-toggle');
-            if (toggle) toggle.checked = false;
+            document.getElementById('bot-active-toggle').checked = false;
             fetchChatHistory(currentChatPhone, true);
             showToast('Reply sent successfully!');
         } else {
