@@ -500,11 +500,11 @@ async function runDripCampaign() {
             }
             
             // Calculate days since in_process_start
-            const startDateStr = c.in_process_start.split(',')[0]; // "DD/MM/YYYY"
+            const startDateStr = c.in_process_start.split(',')[0]; // "DD/MM/YYYY" or "D/M/YYYY"
             const parts = startDateStr.split('/');
             if (parts.length !== 3) continue;
             
-            const startDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+            const startDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
             const today = new Date();
             // Reset times to midnight for accurate day calculation
             startDate.setHours(0,0,0,0);
