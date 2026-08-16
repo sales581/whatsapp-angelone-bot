@@ -68,7 +68,7 @@ app.post('/webhook', (req, res) => {
                         let botActive = await db.getClientBotStatus(from);
                         
                         // ==========================================
-                        // AI CIRCUIT BREAKER (Prevent Infinite Loops)
+                        // AI CIRCUIT Breaker (Prevent Infinite Loops)
                         // ==========================================
                         const lowerText = text.toLowerCase();
                         const isAutoResponder = lowerText.includes('no-reply') || 
@@ -84,17 +84,21 @@ app.post('/webhook', (req, res) => {
                             botActive = false;
                         }
                         
-                        // Rate limit: Mute if >10 messages in 5 minutes
-                        if (!global.rateLimitMap) global.rateLimitMap = {};
-                        const now = Date.now();
-                        if (!global.rateLimitMap[from] || (now - global.rateLimitMap[from].timestamp > 5 * 60 * 1000)) {
-                            global.rateLimitMap[from] = { count: 0, timestamp: now };
-                        }
-                        global.rateLimitMap[from].count++;
-                        global.rateLimitMap[from].timestamp = now;
+                        // Smart Loop Detection: Mute if the EXACT SAME message is sent 3 times in a row
+                        if (!global.duplicateMap) global.duplicateMap = {};
                         
-                        if (global.rateLimitMap[from].count > 10 && botActive) {
-                            console.log(`[CIRCUIT BREAKER] Rate limit exceeded for ${from} (10+ msgs in 5 mins). Disabling AI.`);
+                        if (!global.duplicateMap[from]) {
+                            global.duplicateMap[from] = { text: lowerText, count: 1 };
+                        } else {
+                            if (global.duplicateMap[from].text === lowerText) {
+                                global.duplicateMap[from].count++;
+                            } else {
+                                global.duplicateMap[from] = { text: lowerText, count: 1 };
+                            }
+                        }
+                        
+                        if (global.duplicateMap[from].count >= 3 && botActive) {
+                            console.log(`[CIRCUIT BREAKER] Infinite loop detected for ${from} (Same message 3 times). Disabling AI.`);
                             await db.toggleAutoBot(from, false);
                             botActive = false;
                         }
