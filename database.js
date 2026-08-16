@@ -128,16 +128,24 @@ function processCSV(rows, callback) {
         (async () => {
             for (const row of rows) {
                 const keys = Object.keys(row);
-                const findCol = (...keywords) => {
+                const getVal = (exactKeys, fuzzyKeywords) => {
+                    // 1. Try exact matches first (case insensitive)
+                    for (const ek of exactKeys) {
+                        for (const key of keys) {
+                            if (key.trim().toLowerCase() === ek.toLowerCase()) return row[key];
+                        }
+                    }
+                    // 2. Fallback to fuzzy matching
                     for (const key of keys) {
                         const k = key.toLowerCase().trim();
-                        if (keywords.some(kw => k.includes(kw))) return row[key];
+                        if (fuzzyKeywords.some(kw => k.includes(kw))) return row[key];
                     }
                     return '';
                 };
-                const name = findCol('name', 'client', 'customer') || 'Unknown';
-                let phone = findCol('mobile', 'phone', 'contact', 'number', 'whatsapp') || '';
-                const status = findCol('status', 'stage', 'state') || '';
+
+                const name = getVal(['Client Name', 'Name'], ['name']) || 'Unknown';
+                let phone = getVal(['Mobile', 'Phone', 'Phone Number'], ['mobile', 'phone', 'whatsapp']) || '';
+                const status = getVal(['App Status', 'Status', 'Account Status'], ['status', 'stage']) || '';
                 const stage = mapAngelOneStatus(status);
                 if (!phone) { skipped++; continue; }
                 phone = phone.toString();
