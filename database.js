@@ -26,7 +26,9 @@ if (USE_PG) {
             last_message_time TEXT,
             last_updated TEXT,
             created_at TEXT,
-            auto_bot_active BOOLEAN DEFAULT TRUE
+            auto_bot_active BOOLEAN DEFAULT TRUE,
+            in_process_start TEXT,
+            opt_out BOOLEAN DEFAULT FALSE
         );
         CREATE TABLE IF NOT EXISTS message_log (
             id SERIAL PRIMARY KEY,
@@ -43,6 +45,8 @@ if (USE_PG) {
     `).then(() => {
         // Run migrations if needed
         pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS auto_bot_active BOOLEAN DEFAULT TRUE').catch(()=>console.log('Column already exists'));
+        pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS in_process_start TEXT').catch(()=>console.log('Column already exists'));
+        pool.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS opt_out BOOLEAN DEFAULT FALSE').catch(()=>console.log('Column already exists'));
         console.log('✅ PostgreSQL Database initialized');
         // Auto-sync any unknown senders from logs into the clients table
         pool.query(`
@@ -89,7 +93,7 @@ function mapAngelOneStatus(status) {
     if (!s) return 'lead';
     if (s.includes('account open') || s.includes('opened') || s.includes('active')) return 'account_opened';
     if (s.includes('fund') || s.includes('deposit') || s.includes('trade')) return 'funded';
-    if (s.includes('incomplete') || s.includes('pending') || s.includes('in progress')) return 'incomplete';
+    if (s.includes('incomplete') || s.includes('pending') || s.includes('in progress') || s.includes('in process')) return 'incomplete';
     if (s.includes('rejected') || s.includes('failed')) return 'rejected';
     if (s.includes('link') || s.includes('clicked')) return 'link_clicked';
     return 'lead';
@@ -144,11 +148,17 @@ function processCSV(rows, callback) {
                 try {
                     const res = await pool.query('SELECT * FROM clients WHERE phone = $1', [phone]);
                     if (res.rows.length > 0) {
-                        await pool.query('UPDATE clients SET angel_stage = $1, last_updated = $2 WHERE phone = $3', [stage, now(), phone]);
+                        const existing = res.rows[0];
+                        if (stage === 'incomplete' && existing.angel_stage !== 'incomplete') {
+                            await pool.query('UPDATE clients SET angel_stage = $1, last_updated = $2, in_process_start = $3 WHERE phone = $4', [stage, now(), now(), phone]);
+                        } else {
+                            await pool.query('UPDATE clients SET angel_stage = $1, last_updated = $2 WHERE phone = $3', [stage, now(), phone]);
+                        }
                         updated++;
                     } else {
-                        await pool.query(`INSERT INTO clients (name, phone, angel_stage, message_status, clicked_link, messages_sent, last_updated, created_at)
-                                          VALUES ($1, $2, $3, $4, false, 0, $5, $5)`, [name, phone, stage, 'not_sent', now()]);
+                        const inProc = stage === 'incomplete' ? now() : null;
+                        await pool.query(`INSERT INTO clients (name, phone, angel_stage, message_status, clicked_link, messages_sent, last_updated, created_at, in_process_start)
+                                          VALUES ($1, $2, $3, $4, false, 0, $5, $5, $6)`, [name, phone, stage, 'not_sent', now(), inProc]);
                         added++;
                     }
                 } catch (e) { console.error('CSV PG error:', e); }
@@ -441,12 +451,18 @@ async function toggleAutoBot(phone, active) {
 
 async function getClientBotStatus(phone) {
     if (USE_PG) {
-        const res = await pool.query("SELECT auto_bot_active FROM clients WHERE phone = $1", [phone]);
-        return res.rows[0] ? (res.rows[0].auto_bot_active !== false) : true;
+        const res = await pool.query("SELECT auto_bot_active, opt_out FROM clients WHERE phone = $1", [phone]);
+        if (!res.rows[0]) return true;
+        if (res.rows[0].opt_out === true) return false;
+        return (res.rows[0].auto_bot_active !== false);
     }
-    const db = loadDB();
-    const client = db.clients.find(c => c.phone === phone);
-    return client ? (client.auto_bot_active !== false) : true;
+    return true; // Skipping JSON fallback for new features
+}
+
+async function setOptOut(phone, isOptOut) {
+    if (USE_PG) {
+        await pool.query("UPDATE clients SET opt_out = $1, auto_bot_active = false WHERE phone = $2", [isOptOut, phone]);
+    }
 }
 
 module.exports = {
@@ -466,5 +482,6 @@ module.exports = {
     toggleAutoBot,
     getClientBotStatus,
     markAsResolved,
-    updateClientName
+    updateClientName,
+    setOptOut
 };

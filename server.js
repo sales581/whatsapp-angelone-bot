@@ -84,6 +84,12 @@ app.post('/webhook', (req, res) => {
                             botActive = false;
                         }
                         
+                        if (lowerText === 'stop') {
+                            console.log(`[CIRCUIT BREAKER] User explicitly requested STOP. Opting out ${from}.`);
+                            await db.setOptOut(from, true);
+                            botActive = false;
+                        }
+                        
                         // Smart Loop Detection: Mute if the EXACT SAME message is sent 3 times in a row
                         if (!global.duplicateMap) global.duplicateMap = {};
                         
@@ -110,6 +116,14 @@ app.post('/webhook', (req, res) => {
                             let aiResponse = await ai.generateReply(prompt, history.history, text);
                             
                             if (aiResponse) {
+                                // Check if AI extracted an OPT_OUT
+                                if (aiResponse.includes('[OPT_OUT]')) {
+                                    console.log(`🤖 AI Extracted OPT_OUT for ${from}`);
+                                    await db.setOptOut(from, true);
+                                    aiResponse = aiResponse.replace(/\[OPT_OUT\]/g, '').trim();
+                                    botActive = false; // Stop further messages
+                                }
+                                
                                 // Check if AI extracted a name from the conversation
                                 const nameMatch = aiResponse.match(/\[NAME:\s*(.+?)\]/);
                                 if (nameMatch) {
@@ -120,8 +134,10 @@ app.post('/webhook', (req, res) => {
                                     aiResponse = aiResponse.replace(/\[NAME:\s*(.+?)\]/, '').trim();
                                 }
                                 
-                                await sendMessage(from, aiResponse);
-                                db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
+                                if (aiResponse) {
+                                    await sendMessage(from, aiResponse);
+                                    db.logOutgoingMessage(from, aiResponse, 'ai_reply'); // Log outgoing bot message
+                                }
                             }
                         }
                     } catch (err) {
@@ -216,6 +232,9 @@ app.post('/api/upload-csv', upload.single('csv'), (req, res) => {
             db.processCSV(results, (summary) => {
                 fs.unlinkSync(req.file.path); // Delete temp file
                 res.json({ success: true, summary });
+                
+                // Kick off the automated drip campaign!
+                runDripCampaign();
             });
         })
         .on('error', (err) => {
@@ -459,6 +478,56 @@ app.post('/api/test-send', async (req, res) => {
         res.status(500).json({ success: false, error: err.response?.data || err.message });
     }
 });
+
+// ============================================================
+// AUTO DRIP CAMPAIGN ENGINE
+// ============================================================
+async function runDripCampaign() {
+    console.log('[DRIP CAMPAIGN] Starting daily IN Process campaign...');
+    db.getClientsByStage('incomplete', async (clients) => {
+        let sentCount = 0;
+        
+        for (const c of clients) {
+            if (c.opt_out) continue; // Skip opted out
+            if (!c.in_process_start) continue;
+            
+            // Calculate days since in_process_start
+            const startDateStr = c.in_process_start.split(',')[0]; // "DD/MM/YYYY"
+            const parts = startDateStr.split('/');
+            if (parts.length !== 3) continue;
+            
+            const startDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+            const today = new Date();
+            // Reset times to midnight for accurate day calculation
+            startDate.setHours(0,0,0,0);
+            today.setHours(0,0,0,0);
+            
+            const diffTime = today - startDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Drip logic: Day 0 (today), Day 1, Day 2, Day 6 (7th day), then every 7 days
+            let shouldSend = false;
+            if (diffDays === 0 || diffDays === 1 || diffDays === 2 || diffDays === 6) {
+                shouldSend = true;
+            } else if (diffDays > 6 && (diffDays - 6) % 7 === 0) {
+                shouldSend = true;
+            }
+            
+            if (shouldSend) {
+                try {
+                    await sendWhatsAppMessage(c.phone, c.name, 'incomplete', 'incomplete');
+                    db.updateMessageStatus(c.phone, 'sent');
+                    db.logOutgoingMessage(c.phone, '[Auto Drip Campaign]', 'incomplete');
+                    sentCount++;
+                    await sleep(300); // Rate limiting
+                } catch (e) {
+                    console.error(`Drip send failed for ${c.phone}:`, e.message);
+                }
+            }
+        }
+        console.log(`[DRIP CAMPAIGN] Finished. Sent ${sentCount} reminders.`);
+    });
+}
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
