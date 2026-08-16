@@ -65,7 +65,41 @@ app.post('/webhook', (req, res) => {
                 // Handle AI Auto-Reply
                 (async () => {
                     try {
-                        const botActive = await db.getClientBotStatus(from);
+                        let botActive = await db.getClientBotStatus(from);
+                        
+                        // ==========================================
+                        // AI CIRCUIT BREAKER (Prevent Infinite Loops)
+                        // ==========================================
+                        const lowerText = text.toLowerCase();
+                        const isAutoResponder = lowerText.includes('no-reply') || 
+                                                lowerText.includes('no reply') || 
+                                                lowerText.includes('do not reply') || 
+                                                lowerText.includes('automated message') || 
+                                                lowerText.includes('auto-reply') || 
+                                                lowerText.includes('out of office');
+                        
+                        if (isAutoResponder && botActive) {
+                            console.log(`[CIRCUIT BREAKER] Detected auto-responder from ${from}. Disabling AI.`);
+                            await db.toggleAutoBot(from, false);
+                            botActive = false;
+                        }
+                        
+                        // Rate limit: Mute if >10 messages in 5 minutes
+                        if (!global.rateLimitMap) global.rateLimitMap = {};
+                        const now = Date.now();
+                        if (!global.rateLimitMap[from] || (now - global.rateLimitMap[from].timestamp > 5 * 60 * 1000)) {
+                            global.rateLimitMap[from] = { count: 0, timestamp: now };
+                        }
+                        global.rateLimitMap[from].count++;
+                        global.rateLimitMap[from].timestamp = now;
+                        
+                        if (global.rateLimitMap[from].count > 10 && botActive) {
+                            console.log(`[CIRCUIT BREAKER] Rate limit exceeded for ${from} (10+ msgs in 5 mins). Disabling AI.`);
+                            await db.toggleAutoBot(from, false);
+                            botActive = false;
+                        }
+                        // ==========================================
+
                         if (botActive && text) {
                             const history = await new Promise(resolve => db.getChatHistory(from, resolve));
                             const prompt = await db.getSystemPrompt();
