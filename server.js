@@ -489,7 +489,15 @@ async function runDripCampaign() {
         
         for (const c of clients) {
             if (c.opt_out) continue; // Skip opted out
-            if (!c.in_process_start) continue;
+            
+            // Auto-heal legacy leads: if they are incomplete but have no start date, start them TODAY!
+            if (!c.in_process_start) {
+                const nowStr = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                c.in_process_start = nowStr;
+                if (db.pool) {
+                    db.pool.query('UPDATE clients SET in_process_start = $1 WHERE phone = $2', [nowStr, c.phone]).catch(console.error);
+                }
+            }
             
             // Calculate days since in_process_start
             const startDateStr = c.in_process_start.split(',')[0]; // "DD/MM/YYYY"

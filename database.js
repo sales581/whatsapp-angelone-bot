@@ -466,6 +466,7 @@ async function setOptOut(phone, isOptOut) {
 }
 
 module.exports = {
+    pool,
     addClient,
     processCSV,
     updateMessageStatus,
