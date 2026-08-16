@@ -364,8 +364,21 @@ app.post('/api/send-bulk', async (req, res) => {
     });
 });
 
+app.get('/api/cleanup-junk', async (req, res) => {
+    if (db.pool) {
+        try {
+            const result = await db.pool.query("DELETE FROM clients WHERE LENGTH(phone) < 10 RETURNING *");
+            res.json({ success: true, message: `Successfully deleted ${result.rowCount} junk rows!`, deleted: result.rows });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    } else {
+        res.status(500).json({ error: 'Database not connected' });
+    }
+});
+
 // ============================================================
-// 9. API - ADD SINGLE CLIENT MANUALLY
+// 8. API - ADD SINGLE CLIENT MANUALLY
 // ============================================================
 app.post('/api/add-client', (req, res) => {
     const { name, phone } = req.body;
