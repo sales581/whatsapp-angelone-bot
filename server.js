@@ -183,7 +183,8 @@ app.post('/api/webhook/new-lead', (req, res) => {
             console.log(`[Google Sheets Webhook] Successfully added and welcomed lead: ${client.name} (${client.phone})`);
             res.json({ success: true, message: "Lead added and welcome message sent!" });
         } catch(e) {
-            console.error("[Google Sheets Webhook] Failed to send welcome message:", e.message);
+            const metaError = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
+            console.error("[Google Sheets Webhook] Failed to send welcome message:", metaError);
             res.status(500).json({ success: false, error: "Lead added but message failed to send." });
         }
     });
