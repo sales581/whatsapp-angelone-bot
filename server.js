@@ -454,7 +454,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
                 {
                     type: 'video',
                     video: {
-                        id: '1815950206443779'
+                        link: `${serverUrl}/welcome_video.mp4`
                     }
                 }
             ]
