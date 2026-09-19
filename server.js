@@ -183,7 +183,8 @@ app.post('/api/webhook/new-lead', (req, res) => {
             console.log(`[Google Sheets Webhook] Successfully added and welcomed lead: ${client.name} (${client.phone})`);
             res.json({ success: true, message: "Lead added and welcome message sent!" });
         } catch(e) {
-            console.error("[Google Sheets Webhook] Failed to send welcome message:", e.message);
+            const metaError = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
+            console.error("[Google Sheets Webhook] Failed to send welcome message:", metaError);
             res.status(500).json({ success: false, error: "Lead added but message failed to send." });
         }
     });
@@ -364,8 +365,21 @@ app.post('/api/send-bulk', async (req, res) => {
     });
 });
 
+app.get('/api/cleanup-junk', async (req, res) => {
+    if (db.pool) {
+        try {
+            const result = await db.pool.query("DELETE FROM clients WHERE LENGTH(phone) < 10 RETURNING *");
+            res.json({ success: true, message: `Successfully deleted ${result.rowCount} junk rows!`, deleted: result.rows });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    } else {
+        res.status(500).json({ error: 'Database not connected' });
+    }
+});
+
 // ============================================================
-// 9. API - ADD SINGLE CLIENT MANUALLY
+// 8. API - ADD SINGLE CLIENT MANUALLY
 // ============================================================
 app.post('/api/add-client', (req, res) => {
     const { name, phone } = req.body;
@@ -440,7 +454,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
                 {
                     type: 'video',
                     video: {
-                        id: '1815950206443779'
+                        link: `${serverUrl}/welcome_video.mp4`
                     }
                 }
             ]
