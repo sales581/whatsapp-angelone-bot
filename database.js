@@ -327,13 +327,26 @@ function logOutgoingMessage(phone, content, message_type) {
     saveDB(db);
 }
 
+function parseDate(dStr) {
+    if (!dStr) return 0;
+    const parts = dStr.split(/[^\d]/).filter(n => n.length > 0).map(Number);
+    if (parts.length < 3) return 0;
+    let [d, m, y, hr=0, min=0, sec=0] = parts;
+    if (dStr.toLowerCase().includes('pm') && hr < 12) hr += 12;
+    if (dStr.toLowerCase().includes('am') && hr === 12) hr = 0;
+    return new Date(y, m-1, d, hr, min, sec).getTime();
+}
+
 function getAllClients(callback) {
     if (USE_PG) {
-        pool.query('SELECT * FROM clients ORDER BY last_updated DESC').then(res => callback(res.rows));
+        pool.query('SELECT * FROM clients').then(res => {
+            const sorted = res.rows.sort((a, b) => parseDate(b.last_updated) - parseDate(a.last_updated));
+            callback(sorted);
+        });
         return;
     }
     const db = loadDB();
-    const sorted = [...db.clients].sort((a, b) => new Date(b.last_updated || 0) - new Date(a.last_updated || 0));
+    const sorted = db.clients.sort((a, b) => parseDate(b.last_updated) - parseDate(a.last_updated));
     callback(sorted);
 }
 
