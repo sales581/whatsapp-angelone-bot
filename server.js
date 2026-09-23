@@ -166,20 +166,22 @@ app.post('/webhook', (req, res) => {
 // ============================================================
 // WEBHOOK - GOOGLE SHEETS / NEW LEADS
 // ============================================================
-app.post('/api/webhook/new-lead', (req, res) => {
-    let { name, phone, source } = req.body;
+app.post('/api/webhook/new-lead', async (req, res) => {
+    let { name, phone, source, lead_type } = req.body;
     
     if (!phone) {
         return res.status(400).json({ success: false, error: "Phone number is required" });
     }
     
+    const type = lead_type || 'lead';
+
     // Add client to database
-    db.addClient(name || 'Unknown Lead', phone, 'lead', async (client) => {
+    db.addClient(name || 'Unknown Lead', phone, type, async (client) => {
         try {
             // Send the initial welcome video template
-            await sendWhatsAppMessage(client.phone, client.name, 'lead', 'lead');
+            await sendWhatsAppMessage(client.phone, client.name, type, type);
             db.updateMessageStatus(client.phone, 'sent');
-            db.logOutgoingMessage(client.phone, '[Auto Welcome Template Sent]', 'lead');
+            db.logOutgoingMessage(client.phone, '[Auto Welcome Template Sent]', type);
             console.log(`[Google Sheets Webhook] Successfully added and welcomed lead: ${client.name} (${client.phone})`);
             res.json({ success: true, message: "Lead added and welcome message sent!" });
         } catch(e) {
@@ -418,6 +420,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
     // Map each stage/message_type to an approved Meta template
     const templateMap = {
         lead: 'tpf_initial_lead',
+        course_lead: 'tpf_course_lead', // Add your course lead template here!
         follow_up: 'followup1',
         link_clicked: 'followup1',
         incomplete: 'kyc_folloup',
