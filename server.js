@@ -45,6 +45,33 @@ app.get('/webhook', (req, res) => {
 });
 
 // ============================================================
+// 2.5 MEDIA PROXY - STREAM WHATSAPP MEDIA TO DASHBOARD
+// ============================================================
+app.get('/api/media/:mediaId', async (req, res) => {
+    try {
+        const token = process.env.META_ACCESS_TOKEN;
+        const mediaId = req.params.mediaId;
+        const infoRes = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const mediaUrl = infoRes.data.url;
+        const mimeType = infoRes.data.mime_type;
+
+        const streamRes = await axios.get(mediaUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'stream'
+        });
+
+        if (mimeType) res.setHeader('Content-Type', mimeType);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        streamRes.data.pipe(res);
+    } catch (err) {
+        console.error('Failed to proxy media:', err.response?.data || err.message);
+        res.status(404).send('Media not found or expired');
+    }
+});
+
+// ============================================================
 // 3. WEBHOOK - RECEIVE MESSAGE STATUS UPDATES
 // ============================================================
 app.post('/webhook', (req, res) => {
@@ -56,10 +83,63 @@ app.post('/webhook', (req, res) => {
             if (changes.messages?.[0]) {
                 const msg = changes.messages[0];
                 const from = msg.from;
-                const text = msg.text?.body || '';
+                const msgType = msg.type || 'text';
                 const contactName = changes.contacts?.[0]?.profile?.name || 'Unknown Sender';
-                
-                console.log(`Incoming from ${contactName} (${from}): ${text}`);
+
+                let text = '';
+                let aiInputText = '';
+
+                if (msgType === 'text') {
+                    text = msg.text?.body || '';
+                    aiInputText = text;
+                } else if (msgType === 'button') {
+                    text = msg.button?.text || msg.button?.payload || '[Button Clicked]';
+                    aiInputText = text;
+                } else if (msgType === 'interactive') {
+                    text = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[Interactive Reply]';
+                    aiInputText = text;
+                } else if (msgType === 'image') {
+                    const mediaId = msg.image?.id || '';
+                    const caption = msg.image?.caption || '';
+                    text = `[MEDIA:image:${mediaId}]${caption ? ' ' + caption : ''}`;
+                    aiInputText = caption || 'The client sent an image/screenshot. Politely acknowledge receiving their image and ask how you can help them with their Angel One Demat account process.';
+                } else if (msgType === 'audio' || msgType === 'voice') {
+                    const mediaId = (msg.audio || msg.voice)?.id || '';
+                    text = `[MEDIA:audio:${mediaId}]`;
+                    aiInputText = 'The client sent a voice note / audio message. Politely let them know you received their voice note, and ask them to briefly type their question in text (Hindi or English) or let them know our executive will listen to it shortly.';
+                } else if (msgType === 'video') {
+                    const mediaId = msg.video?.id || '';
+                    const caption = msg.video?.caption || '';
+                    text = `[MEDIA:video:${mediaId}]${caption ? ' ' + caption : ''}`;
+                    aiInputText = caption || 'The client sent a video. Politely acknowledge it and ask how you can assist them.';
+                } else if (msgType === 'document') {
+                    const mediaId = msg.document?.id || '';
+                    const filename = msg.document?.filename || 'Document';
+                    const caption = msg.document?.caption || '';
+                    text = `[MEDIA:document:${mediaId}:${filename}]${caption ? ' ' + caption : ''}`;
+                    aiInputText = caption || `The client sent a document (${filename}). Politely acknowledge receiving it and ask how you can help them complete their Angel One account opening.`;
+                } else if (msgType === 'sticker') {
+                    const mediaId = msg.sticker?.id || '';
+                    text = `[MEDIA:sticker:${mediaId}]`;
+                    aiInputText = ''; // Do not need AI to auto-reply to stickers unless desired
+                } else if (msgType === 'reaction') {
+                    const emoji = msg.reaction?.emoji || '👍';
+                    text = `[Reaction: ${emoji}]`;
+                    aiInputText = ''; // Don't trigger AI reply on simple emoji reactions
+                } else if (msgType === 'contacts') {
+                    const sharedName = msg.contacts?.[0]?.name?.formatted_name || 'Contact';
+                    const sharedPhone = msg.contacts?.[0]?.phones?.[0]?.phone || '';
+                    text = `[Shared Contact: ${sharedName} ${sharedPhone}]`;
+                    aiInputText = `The client shared a contact (${sharedName}). Politely acknowledge it.`;
+                } else if (msgType === 'location') {
+                    text = `[Shared Location]`;
+                    aiInputText = '';
+                } else {
+                    text = `[${msgType.toUpperCase()} message]`;
+                    aiInputText = '';
+                }
+
+                console.log(`Incoming (${msgType}) from ${contactName} (${from}): ${text}`);
                 db.logIncomingMessage(from, text, contactName);
 
                 // Handle AI Auto-Reply
@@ -70,7 +150,7 @@ app.post('/webhook', (req, res) => {
                         // ==========================================
                         // AI CIRCUIT Breaker (Prevent Infinite Loops)
                         // ==========================================
-                        const lowerText = text.toLowerCase();
+                        const lowerText = (aiInputText || text).toLowerCase();
                         const isAutoResponder = lowerText.includes('no-reply') || 
                                                 lowerText.includes('no reply') || 
                                                 lowerText.includes('do not reply') || 
@@ -90,30 +170,32 @@ app.post('/webhook', (req, res) => {
                             botActive = false;
                         }
                         
-                        // Smart Loop Detection: Mute if the EXACT SAME message is sent 3 times in a row
-                        if (!global.duplicateMap) global.duplicateMap = {};
-                        
-                        if (!global.duplicateMap[from]) {
-                            global.duplicateMap[from] = { text: lowerText, count: 1 };
-                        } else {
-                            if (global.duplicateMap[from].text === lowerText) {
-                                global.duplicateMap[from].count++;
-                            } else {
+                        // Smart Loop Detection: Mute if the EXACT SAME text message is sent 3 times in a row (only for non-empty text)
+                        if (aiInputText && msgType === 'text') {
+                            if (!global.duplicateMap) global.duplicateMap = {};
+                            
+                            if (!global.duplicateMap[from]) {
                                 global.duplicateMap[from] = { text: lowerText, count: 1 };
+                            } else {
+                                if (global.duplicateMap[from].text === lowerText) {
+                                    global.duplicateMap[from].count++;
+                                } else {
+                                    global.duplicateMap[from] = { text: lowerText, count: 1 };
+                                }
                             }
-                        }
-                        
-                        if (global.duplicateMap[from].count >= 3 && botActive) {
-                            console.log(`[CIRCUIT BREAKER] Infinite loop detected for ${from} (Same message 3 times). Disabling AI.`);
-                            await db.toggleAutoBot(from, false);
-                            botActive = false;
+                            
+                            if (global.duplicateMap[from].count >= 3 && botActive) {
+                                console.log(`[CIRCUIT BREAKER] Infinite loop detected for ${from} (Same message 3 times). Disabling AI.`);
+                                await db.toggleAutoBot(from, false);
+                                botActive = false;
+                            }
                         }
                         // ==========================================
 
-                        if (botActive && text) {
+                        if (botActive && aiInputText) {
                             const history = await new Promise(resolve => db.getChatHistory(from, resolve));
                             const prompt = await db.getSystemPrompt();
-                            let aiResponse = await ai.generateReply(prompt, history.history, text);
+                            let aiResponse = await ai.generateReply(prompt, history.history, aiInputText);
                             
                             if (aiResponse) {
                                 // Check if AI extracted an OPT_OUT
@@ -166,20 +248,25 @@ app.post('/webhook', (req, res) => {
 // ============================================================
 // WEBHOOK - GOOGLE SHEETS / NEW LEADS
 // ============================================================
-app.post('/api/webhook/new-lead', (req, res) => {
-    let { name, phone, source } = req.body;
+app.post('/api/webhook/new-lead', async (req, res) => {
+    let { name, phone, source, lead_type } = req.body;
     
     if (!phone) {
         return res.status(400).json({ success: false, error: "Phone number is required" });
     }
     
+    const type = lead_type || 'lead';
+
     // Add client to database
-    db.addClient(name || 'Unknown Lead', phone, 'lead', async (client) => {
+    db.addClient(name || 'Unknown Lead', phone, type, async (client) => {
         try {
             // Send the initial welcome video template
-            await sendWhatsAppMessage(client.phone, client.name, 'lead', 'lead');
+            await sendWhatsAppMessage(client.phone, client.name, type, type);
             db.updateMessageStatus(client.phone, 'sent');
-            db.logOutgoingMessage(client.phone, '[Auto Welcome Template Sent]', 'lead');
+            const templateLabel = type === 'course_lead'
+                ? '📤 [Sent Template: tpf_course_lead (Free Course Welcome)]'
+                : '📤 [Sent Template: tpf_initial_lead (Welcome Video + Angel One Link)]';
+            db.logOutgoingMessage(client.phone, templateLabel, type);
             console.log(`[Google Sheets Webhook] Successfully added and welcomed lead: ${client.name} (${client.phone})`);
             res.json({ success: true, message: "Lead added and welcome message sent!" });
         } catch(e) {
@@ -418,6 +505,7 @@ async function sendWhatsAppMessage(phone, name, message_type, stage) {
     // Map each stage/message_type to an approved Meta template
     const templateMap = {
         lead: 'tpf_initial_lead',
+        course_lead: 'tpf_course_lead', // Add your course lead template here!
         follow_up: 'followup1',
         link_clicked: 'followup1',
         incomplete: 'kyc_folloup',

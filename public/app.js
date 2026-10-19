@@ -91,12 +91,23 @@ async function toggleBotActive(active) {
 // ============================================================
 // QUERIES TABLE
 // ============================================================
+function formatMessagePreview(raw) {
+    if (!raw || !raw.trim()) return '<em>[Media / Button reply]</em>';
+    const mediaMatch = raw.match(/^\[MEDIA:(image|audio|video|sticker|document):([^:\]]+)(?::([^\]]+))?\](.*)$/s);
+    if (mediaMatch) {
+        const [, mType, , extra, caption] = mediaMatch;
+        const icons = { image: '📷 Image', audio: '🎤 Voice Note', video: '🎥 Video', sticker: '🏷️ Sticker', document: `📄 ${extra || 'Document'}` };
+        const label = icons[mType] || '📎 Media';
+        return escapeHtml(caption && caption.trim() ? `${label}: ${caption.trim()}` : label);
+    }
+    const trimmed = raw.length > 60 ? raw.substring(0, 60) + '...' : raw;
+    return escapeHtml(trimmed);
+}
+
 async function loadQueries() {
     try {
-        if (!allClients.length) {
-            const res = await fetch('/api/clients');
-            allClients = await res.json();
-        }
+        const res = await fetch('/api/clients');
+        allClients = await res.json();
         const tbody = document.getElementById('queries-tbody');
         // Show ANY client who has replied in the New Queries tab
         const queries = allClients.filter(c => c.message_status === 'replied');
@@ -110,7 +121,10 @@ async function loadQueries() {
             <tr>
                 <td><strong>${escapeHtml(c.name)}</strong><br>${c.phone}</td>
                 <td><span class="badge badge-replied">New Reply 💬</span></td>
-                <td>${c.last_updated ? c.last_updated.substring(0, 16) : '—'}</td>
+                <td style="white-space: normal; max-width: 320px;">
+                    <div style="font-weight: 500; color: var(--text); margin-bottom: 2px;">${formatMessagePreview(c.last_incoming_content || c.last_message_content)}</div>
+                    <div style="font-size: 11px; color: var(--text-dim);">${c.last_updated || '—'}</div>
+                </td>
                 <td>
                     <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="openChatModal('${c.phone}', '${escapeHtml(c.name)}')">💬 View Chat</button>
                 </td>
@@ -435,7 +449,9 @@ async function openChatModal(phone, name) {
     currentChatPhone = phone;
     document.getElementById('chat-modal-title').textContent = `Chat with ${name}`;
     document.getElementById('chat-modal').classList.remove('hidden');
-    document.getElementById('chat-history').innerHTML = '<div style="text-align:center; padding: 20px;">Loading history...</div>';
+    const historyEl = document.getElementById('chat-history');
+    delete historyEl.dataset.fingerprint;
+    historyEl.innerHTML = '<div style="text-align:center; padding: 20px;">Loading history...</div>';
     document.getElementById('chat-reply-input').value = '';
 
     await fetchChatHistory(phone);
@@ -473,18 +489,78 @@ async function fetchChatHistory(phone, isSilentPolling = false) {
 
         const html = data.history.map(msg => {
             const isIncoming = msg.direction === 'incoming';
+            const rawContent = msg.content || '';
+            let bodyHtml = '';
+
+            // Check for embedded [MEDIA:type:mediaId] tags
+            const mediaMatch = rawContent.match(/^\[MEDIA:(image|audio|video|sticker|document):([^:\]]+)(?::([^\]]+))?\](.*)$/s);
+            if (mediaMatch) {
+                const [, mType, mediaId, extra, caption] = mediaMatch;
+                const mediaUrl = `/api/media/${encodeURIComponent(mediaId)}`;
+                const captionHtml = caption && caption.trim() ? `<div style="margin-top:6px;">${escapeHtml(caption.trim())}</div>` : '';
+
+                if (mType === 'image' || mType === 'sticker') {
+                    bodyHtml = `
+                        <div>
+                            <a href="${mediaUrl}" target="_blank" title="Click to open full image">
+                                <img src="${mediaUrl}" alt="WhatsApp Image" style="max-width:220px; max-height:220px; border-radius:10px; display:block; cursor:pointer;" />
+                            </a>
+                            ${captionHtml}
+                        </div>
+                    `;
+                } else if (mType === 'audio') {
+                    bodyHtml = `
+                        <div>
+                            <div style="font-size:11px; margin-bottom:4px; opacity:0.8;">🎤 Voice Note / Audio</div>
+                            <audio controls preload="metadata" src="${mediaUrl}" style="max-width:240px; height:36px;"></audio>
+                        </div>
+                    `;
+                } else if (mType === 'video') {
+                    bodyHtml = `
+                        <div>
+                            <video controls preload="metadata" src="${mediaUrl}" style="max-width:240px; max-height:220px; border-radius:10px; display:block;"></video>
+                            ${captionHtml}
+                        </div>
+                    `;
+                } else if (mType === 'document') {
+                    const docName = extra || 'Document';
+                    bodyHtml = `
+                        <div>
+                            <a href="${mediaUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:6px; text-decoration:underline; font-weight:600; color:inherit;">
+                                📄 ${escapeHtml(docName)} (Open / Download)
+                            </a>
+                            ${captionHtml}
+                        </div>
+                    `;
+                }
+            } else if (!rawContent.trim()) {
+                if (msg.message_type) {
+                    bodyHtml = escapeHtml(`[Template Sent: ${msg.message_type}]`);
+                } else {
+                    bodyHtml = `<em style="opacity:0.75;">[Non-text message (Media / Button) sent before update]</em>`;
+                }
+            } else {
+                bodyHtml = escapeHtml(rawContent).replace(/\n/g, '<br/>');
+            }
+
+            const timeDisplay = msg.timestamp
+                ? (msg.timestamp.includes(',') ? msg.timestamp.split(',')[1].trim() : msg.timestamp)
+                : '';
+
             return `
                 <div class="chat-bubble ${isIncoming ? 'incoming' : 'outgoing'}">
-                    ${escapeHtml(msg.content || (msg.message_type ? `[Template Sent: ${msg.message_type}]` : ''))}
-                    <span class="chat-time">${msg.timestamp ? msg.timestamp.substring(11, 16) : ''}</span>
+                    ${bodyHtml}
+                    <span class="chat-time">${escapeHtml(timeDisplay)}</span>
                 </div>
             `;
         }).join('');
         
-        // Only update innerHTML if it changed to prevent annoying scroll jumps
-        if (container.innerHTML !== html) {
+        // Only update DOM if messages changed to prevent resetting active audio/video players or scroll jumps
+        const fingerprint = JSON.stringify(data.history.map(m => `${m.id}:${m.content}`));
+        if (container.dataset.fingerprint !== fingerprint) {
             const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
             container.innerHTML = html;
+            container.dataset.fingerprint = fingerprint;
             if (isScrolledToBottom || !isSilentPolling) {
                 container.scrollTop = container.scrollHeight;
             }

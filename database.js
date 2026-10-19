@@ -63,6 +63,15 @@ if (USE_PG) {
             WHERE phone IN (SELECT DISTINCT phone FROM message_log WHERE direction = 'incoming') 
             AND message_status NOT IN ('replied', 'read')
         `).catch(console.error);
+
+        // Re-enable auto_bot_active for clients falsely muted due to empty media/button messages
+        pool.query(`
+            UPDATE clients
+            SET auto_bot_active = TRUE
+            WHERE auto_bot_active = FALSE
+            AND opt_out = FALSE
+            AND phone IN (SELECT DISTINCT phone FROM message_log WHERE direction = 'incoming' AND content = '')
+        `).catch(console.error);
     }).catch(console.error);
 } else {
     console.log('✅ JSON Database initialized at:', DB_FILE);
@@ -327,13 +336,38 @@ function logOutgoingMessage(phone, content, message_type) {
     saveDB(db);
 }
 
+function parseDate(dStr) {
+    if (!dStr) return 0;
+    const parts = dStr.split(/[^\d]/).filter(n => n.length > 0).map(Number);
+    if (parts.length < 3) return 0;
+    let [d, m, y, hr=0, min=0, sec=0] = parts;
+    if (dStr.toLowerCase().includes('pm') && hr < 12) hr += 12;
+    if (dStr.toLowerCase().includes('am') && hr === 12) hr = 0;
+    return new Date(y, m-1, d, hr, min, sec).getTime();
+}
+
 function getAllClients(callback) {
     if (USE_PG) {
-        pool.query('SELECT * FROM clients ORDER BY last_updated DESC').then(res => callback(res.rows));
+        const q = `
+            SELECT c.*,
+                (SELECT content FROM message_log m WHERE m.phone = c.phone AND m.direction = 'incoming' ORDER BY m.id DESC LIMIT 1) AS last_incoming_content,
+                (SELECT content FROM message_log m WHERE m.phone = c.phone ORDER BY m.id DESC LIMIT 1) AS last_message_content
+            FROM clients c
+        `;
+        pool.query(q).then(res => {
+            const sorted = res.rows.sort((a, b) => parseDate(b.last_updated) - parseDate(a.last_updated));
+            callback(sorted);
+        }).catch(err => {
+            console.error('Error in getAllClients:', err);
+            pool.query('SELECT * FROM clients').then(r2 => {
+                const sorted = r2.rows.sort((a, b) => parseDate(b.last_updated) - parseDate(a.last_updated));
+                callback(sorted);
+            });
+        });
         return;
     }
     const db = loadDB();
-    const sorted = [...db.clients].sort((a, b) => new Date(b.last_updated || 0) - new Date(a.last_updated || 0));
+    const sorted = db.clients.sort((a, b) => parseDate(b.last_updated) - parseDate(a.last_updated));
     callback(sorted);
 }
 
