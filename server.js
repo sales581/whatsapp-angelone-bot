@@ -135,8 +135,19 @@ app.post('/webhook', (req, res) => {
                     text = `[Shared Location]`;
                     aiInputText = '';
                 } else {
-                    text = `[${msgType.toUpperCase()} message]`;
-                    aiInputText = '';
+                    console.log(`[RAW INCOMING MSG] (${msgType}) from ${from}:`, JSON.stringify(msg));
+                    const errDetail = msg.errors?.[0]?.error_data?.details || msg.errors?.[0]?.title || msg.errors?.[0]?.message || '';
+                    const hiddenText = msg.text?.body || msg.button?.text || msg.interactive?.button_reply?.title || msg.referral?.headline || '';
+                    if (hiddenText) {
+                        text = hiddenText;
+                        aiInputText = hiddenText;
+                    } else if (errDetail) {
+                        text = `[${msgType.toUpperCase()}: ${errDetail}]`;
+                        aiInputText = '';
+                    } else {
+                        text = `[${msgType.toUpperCase()} message]`;
+                        aiInputText = '';
+                    }
                 }
 
                 console.log(`Incoming (${msgType}) from ${contactName} (${from}): ${text}`);
